@@ -11,6 +11,8 @@ authRouter.post("/signup", async (req, res) => {
   const data = CreateUserSchema.safeParse(req.body);
 
   if (!data.success) {
+    console.log(data.error.format());
+
     return res.json({
       message: "Incorrect inputs",
     });
@@ -26,15 +28,16 @@ authRouter.post("/signup", async (req, res) => {
 
     await prismaClient.user.create({
       data: {
-        username: username,
-        email: email,
+        username,
+        email,
         password: hashedPassword,
-        name: name,
+        name,
       },
     });
   } catch (e) {
     return res.status(400).json({
       message: "Unable to signup",
+      error: e
     });
   }
 

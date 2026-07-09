@@ -13,8 +13,8 @@ model User {
   password String
   name     String
   photo    String?
-  rooms    Room[]
   chats    Chat[]
+  rooms    Room[]
 }
 
 model Room {
@@ -22,8 +22,8 @@ model Room {
   slug      String   @unique
   createdAt DateTime @default(now())
   adminId   String
-  admin     User     @relation(fields: [adminId], references: [id])
   chats     Chat[]
+  admin     User     @relation(fields: [adminId], references: [id])
 }
 
 model Chat {

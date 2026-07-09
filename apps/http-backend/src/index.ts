@@ -14,7 +14,4 @@ app.get("/", (req, res) => {
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/room", roomRouter);
 
-
-console.log("DATABASE_URL =", process.env.DATABASE_URL);
-
 app.listen(3000);

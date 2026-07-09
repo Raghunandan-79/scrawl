@@ -21,5 +21,9 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalEnv": [
+    "DATABASE_URL",
+    "JWT_SECRET"
+  ]
 }

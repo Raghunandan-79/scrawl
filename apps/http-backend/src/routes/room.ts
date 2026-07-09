@@ -1,7 +1,10 @@
-import { Router } from "express";
+import { Router, type Router as ExpressRouter } from "express";
+import { authMiddleware } from "../middlewares/authMiddleware";
 
-const roomRouter = Router();
+const roomRouter: ExpressRouter = Router();
 
-roomRouter.post("/create-room", (req, res) => {
+roomRouter.post("/create-room", authMiddleware, async (req, res) => {
 
 });
+
+export default roomRouter;

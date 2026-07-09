@@ -11,8 +11,6 @@ authRouter.post("/signup", async (req, res) => {
   const data = CreateUserSchema.safeParse(req.body);
 
   if (!data.success) {
-    console.log(data.error.format());
-
     return res.json({
       message: "Incorrect inputs",
     });
@@ -37,7 +35,7 @@ authRouter.post("/signup", async (req, res) => {
   } catch (e) {
     return res.status(400).json({
       message: "Unable to signup",
-      error: e
+      error: e,
     });
   }
 
@@ -52,6 +50,46 @@ authRouter.post("/signin", async (req, res) => {
   if (!data.success) {
     return res.json({
       message: "Incorrect inputs",
+    });
+  }
+
+  const username = req.body.username;
+  const password = req.body.password;
+
+  try {
+    const user = await prismaClient.user.findUnique({
+      where: {
+        username,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "User doesnot exists",
+      });
+    }
+
+    const passwordMatched = await bcrypt.compare(password, user.password);
+
+    if (passwordMatched) {
+      const token = jwt.sign(
+        {
+          id: user.id.toString(),
+        },
+        JWT_SECRET,
+      );
+
+      res.json({
+        token: token,
+      });
+    } else {
+      res.status(403).json({
+        message: "Incorrect credentials",
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      message: "User doesnot exits",
     });
   }
 });

@@ -1,10 +1,17 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 export default function Home() {
   const roomId = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/signin");
+    }
+  }, [router]);
 
   return (
     <div className="flex w-screen h-screen justify-center items-center">

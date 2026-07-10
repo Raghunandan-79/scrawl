@@ -20,7 +20,7 @@ export const signUpHandler = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await prismaClient.user.create({
+    const user = await prismaClient.user.create({
       data: {
         username,
         email,
@@ -28,13 +28,13 @@ export const signUpHandler = async (req: Request, res: Response) => {
         name,
       },
     });
+
+    res.json({
+      userId: user.id,
+    });
   } catch (e) {
     return res.status(400).json({
-      message: "Unable to signup"
+      message: "Unable to signup",
     });
   }
-
-  res.json({
-    message: "You have been signed up successfully",
-  });
 };

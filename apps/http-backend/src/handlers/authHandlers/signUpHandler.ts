@@ -4,20 +4,20 @@ import { prismaClient } from "@repo/db/client";
 import { CreateUserSchema } from "@repo/common/types";
 
 export const signUpHandler = async (req: Request, res: Response) => {
-  const data = CreateUserSchema.safeParse(req.body);
+  const parsedData = CreateUserSchema.safeParse(req.body);
 
-  if (!data.success) {
+  if (!parsedData.success) {
     return res.json({
       message: "Incorrect inputs",
     });
   }
 
-  const username = req.body.username;
-  const email = req.body.email;
-  const password = req.body.password;
-  const name = req.body.name;
-
   try {
+    const username = parsedData.data.username;
+    const email = parsedData.data.email;
+    const password = parsedData.data.password;
+    const name = parsedData.data.name;
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await prismaClient.user.create({

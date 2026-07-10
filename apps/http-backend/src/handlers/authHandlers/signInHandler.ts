@@ -6,21 +6,20 @@ import { JWT_SECRET } from "@repo/backend-common/config";
 import jwt from "jsonwebtoken";
 
 export const signInHandler = async (req: Request, res: Response) => {
-  const data = SigninSchema.safeParse(req.body);
+  const parsedData = SigninSchema.safeParse(req.body);
 
-  if (!data.success) {
+  if (!parsedData.success) {
     return res.json({
       message: "Incorrect inputs",
     });
   }
 
-  const username = req.body.username;
-  const password = req.body.password;
-
   try {
+    const username = parsedData.data?.username;
+    const password = parsedData.data.password;
     const user = await prismaClient.user.findUnique({
       where: {
-        username,
+        username
       },
     });
 

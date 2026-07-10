@@ -30,8 +30,7 @@ export const signUpHandler = async (req: Request, res: Response) => {
     });
   } catch (e) {
     return res.status(400).json({
-      message: "Unable to signup",
-      error: e,
+      message: "Unable to signup"
     });
   }
 

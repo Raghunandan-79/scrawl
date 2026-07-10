@@ -1,17 +1,9 @@
 import { Router, type Router as ExpressRouter } from "express";
 import { authMiddleware } from "../middlewares/authMiddleware";
-import { CreateRoomSchema } from "@repo/common/types";
+import { createRoomHandler } from "../handlers/roomHandlers/createRoomHandler";
 
 const roomRouter: ExpressRouter = Router();
 
-roomRouter.post("/create-room", authMiddleware, async (req, res) => {
-  const data = CreateRoomSchema.safeParse(req.body);
-
-  if (!data.success) {
-    return res.json({
-      message: "Incorrect inputs",
-    });
-  }
-});
+roomRouter.post("/create-room", authMiddleware, createRoomHandler);
 
 export default roomRouter;

@@ -20,7 +20,7 @@ export default function Home() {
 
         <button className="bg-emerald-600 p-2 rounded"
           onClick={() => {
-            router.push(`/rooms/${roomId.current?.value}`);
+            router.push(`/room/${roomId.current?.value}`);
           }}
         >
           Join Room

@@ -1,7 +1,7 @@
 import { Router, type Router as ExpressRouter } from "express";
-import { authMiddleware } from "../middlewares/authMiddleware";
-import { createRoomHandler } from "../handlers/roomHandlers/createRoomHandler";
-import { joinRoomHadler } from "../handlers/roomHandlers/joinRoomHandler";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { createRoomHandler } from "../handlers/roomHandlers/createRoomHandler.js";
+import { joinRoomHadler } from "../handlers/roomHandlers/joinRoomHandler.js";
 
 const roomRouter: ExpressRouter = Router();
 

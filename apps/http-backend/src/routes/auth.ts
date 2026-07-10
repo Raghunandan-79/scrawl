@@ -1,6 +1,6 @@
 import { Router, type Router as ExpressRouter } from "express";
-import { signUpHandler } from "../handlers/authHandlers/signUpHandler";
-import { signInHandler } from "../handlers/authHandlers/signInHandler";
+import { signUpHandler } from "../handlers/authHandlers/signUpHandler.js";
+import { signInHandler } from "../handlers/authHandlers/signInHandler.js";
 
 const authRouter: ExpressRouter = Router();
 

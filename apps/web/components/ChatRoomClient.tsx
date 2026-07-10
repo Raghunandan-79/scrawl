@@ -1,18 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { BACKEND_URL } from "../app/config";
 import { useSocket } from "../app/hooks/useSocket";
 
 export function ChatRoomClient({
-  messages,
   id,
 }: {
-  messages: { message: string }[];
   id: string;
 }) {
-  const [chats, setChats] = useState(messages);
+  const [chats, setChats] = useState<{ message: string }[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const { socket, loading } = useSocket();
+
+  // Fetch initial chat room messages from the API server on mount/room id change
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(`${BACKEND_URL}/api/v1/chats/${id}`, {
+          headers: {
+            token: token || "",
+          },
+        });
+        setChats(response.data.messages || []);
+      } catch (err) {
+        console.error("Failed to load chat history:", err);
+      }
+    };
+    fetchChats();
+  }, [id]);
 
   useEffect(() => {
     if (socket && !loading) {

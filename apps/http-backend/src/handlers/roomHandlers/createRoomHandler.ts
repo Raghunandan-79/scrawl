@@ -20,7 +20,7 @@ export const createRoomHandler = async (req: Request, res: Response) => {
   }
 
   try {
-    await prismaClient.room.create({
+    const room = await prismaClient.room.create({
       data: {
         slug: parsedData.data.name,
         adminId: userId,
@@ -28,11 +28,11 @@ export const createRoomHandler = async (req: Request, res: Response) => {
     });
 
     res.json({
-      roomId: 123
+      roomId: room.id
     })
   } catch(e) {
-    return res.status(500).json({
-      messsage: "Unable to create room"
+    return res.status(411).json({
+      messsage: "Room already exists with this name"
     })
   }
 };

@@ -34,7 +34,7 @@ export const signInHandler = async (req: Request, res: Response) => {
     if (passwordMatched) {
       const token = jwt.sign(
         {
-          id: user.id.toString(),
+          userId: user.id,
         },
         JWT_SECRET,
       );

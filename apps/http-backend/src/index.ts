@@ -13,7 +13,13 @@ const ALLOWED_ORIGINS = [
 
 app.use((req, res, next) => {
     const origin = req.headers.origin as string;
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    const isAllowed =
+        origin && (
+            origin === "http://localhost:3000" ||
+            origin.endsWith(".raghunandan.dev") ||
+            ALLOWED_ORIGINS.includes(origin)
+        );
+    if (isAllowed) {
         res.setHeader("Access-Control-Allow-Origin", origin);
     }
     res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, token");

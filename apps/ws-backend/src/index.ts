@@ -34,7 +34,13 @@ wss.on("connection", async function connection(ws, request) {
     "http://localhost:3000",
     ...(process.env.ALLOWED_ORIGINS?.split(",") ?? []),
   ];
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+  const isAllowed =
+    !origin ||
+    origin === "http://localhost:3000" ||
+    origin.endsWith(".raghunandan.dev") ||
+    ALLOWED_ORIGINS.includes(origin);
+
+  if (!isAllowed) {
     console.warn(`Connection rejected: unauthorized origin: ${origin}`);
     ws.close();
     return;

@@ -6,7 +6,17 @@ import { useRouter } from "next/navigation";
 import { BACKEND_URL } from "./config";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
-import { LogOut, ArrowRight, User, Plus, Compass, Sparkles, Download } from "lucide-react";
+import { LogOut, ArrowRight, User, Plus, Compass, Sparkles, Download, Trash } from "lucide-react";
+
+const getUserIdFromToken = (token: string): string | null => {
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    return decoded.userId || null;
+  } catch (e) {
+    return null;
+  }
+};
 
 export default function Home() {
   const router = useRouter();
@@ -15,10 +25,53 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   useEffect(() => {
-    setToken(localStorage.getItem("token"));
+    const t = localStorage.getItem("token");
+    setToken(t);
   }, []);
+
+  const fetchRooms = async () => {
+    const storedToken = localStorage.getItem("token");
+    if (!storedToken) return;
+    setLoadingRooms(true);
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/v1/room/my-rooms`, {
+        headers: { token: storedToken }
+      });
+      setRooms(res.data?.rooms || []);
+    } catch (err) {
+      console.error("Failed to fetch rooms:", err);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const handleDeleteRoom = async (roomId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this workspace and all its drawings?")) {
+      return;
+    }
+    const storedToken = localStorage.getItem("token");
+    if (!storedToken) return;
+    try {
+      await axios.delete(`${BACKEND_URL}/api/v1/room/delete-room/${roomId}`, {
+        headers: { token: storedToken }
+      });
+      fetchRooms();
+    } catch (err: any) {
+      console.error("Failed to delete room:", err);
+      alert(err.response?.data?.message || "Could not delete room.");
+    }
+  };
+
+  useEffect(() => {
+    if (isModalOpen && token) {
+      fetchRooms();
+    }
+  }, [isModalOpen, token]);
 
   const handleCreateOrJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +93,18 @@ export default function Home() {
       const joinResponse = await axios.post(`${BACKEND_URL}/api/v1/room/join-room/${slug}`);
       
       if (joinResponse.data?.room) {
-        // Room exists, redirect to it using slug
-        router.push(`/canvas/${joinResponse.data.room.slug}`);
+        const room = joinResponse.data.room;
+        const currentUserId = getUserIdFromToken(storedToken);
+        
+        if (room.adminId === currentUserId) {
+          // Room exists and user is owner -> redirect to slug (Edit mode)
+          router.push(`/canvas/${room.slug}`);
+          setIsModalOpen(false);
+        } else {
+          // Room exists but belongs to someone else -> redirect to numeric ID (Read-only mode)
+          router.push(`/canvas/${room.id}`);
+          setIsModalOpen(false);
+        }
       } else {
         // Room doesn't exist, create it
         const createResponse = await axios.post(
@@ -56,6 +119,7 @@ export default function Home() {
 
         if (createResponse.data?.roomId) {
           router.push(`/canvas/${slug}`);
+          setIsModalOpen(false);
         } else {
           setError("Failed to create room. It might already exist or inputs are invalid.");
         }
@@ -184,11 +248,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center text-center px-6 py-16 md:py-24 max-w-4xl mx-auto">
-        <div className="inline-flex items-center bg-white border border-[#E5E0D8] px-3.5 py-1.5 rounded-full shadow-[0_2px_8px_rgba(229,224,216,0.15)] mb-8 select-none">
-          <span className="font-mono text-[10px] font-bold tracking-wider text-[#D95F4D]">
-            BETA 0.1 OUT NOW
-          </span>
-        </div>
+
 
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-8 max-w-3xl">
           A raw, digital canvas for the messy middle of the creative process.
@@ -365,30 +425,76 @@ export default function Home() {
       {/* Quick Modal for Rooms */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-[#1E1E1E]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E0D8] rounded-2xl p-6 w-full max-w-md relative shadow-2xl">
-            <h3 className="text-lg font-extrabold mb-2">My Workspace Rooms</h3>
+          <div className="bg-white border border-[#E5E0D8] rounded-2xl p-6 w-full max-w-lg relative shadow-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
+            <h3 className="text-lg font-extrabold mb-1">My Workspace Pages</h3>
             <p className="text-xs text-[#706B5F] mb-6">
-              Enter a workspace slug to open it. If it doesn&apos;t exist, it will be automatically created under your account.
+              Create new whiteboards or open and delete pages under your account.
             </p>
 
-            <form onSubmit={handleCreateOrJoinRoom} className="flex flex-col gap-3">
-              <Input
-                label="Workspace Room Slug"
-                placeholder="project-alpha"
-                value={roomSlug}
-                onChange={(e) => setRoomSlug(e.target.value)}
-                required
-              />
-              {error && <p className="text-xs text-[#D95F4D]">{error}</p>}
-              <div className="flex gap-2.5 mt-4 justify-end">
-                <Button variant="secondary" size="sm" type="button" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="sm" type="submit" isLoading={loading}>
-                  Join Room
-                </Button>
-              </div>
-            </form>
+            {/* List of active rooms */}
+            <div className="flex-1 overflow-y-auto mb-6 pr-1 space-y-2.5 max-h-[35vh] scrollbar-thin">
+              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] block mb-2">
+                All Pages ({rooms.length})
+              </label>
+              {loadingRooms ? (
+                <div className="py-8 text-center text-xs font-mono text-[#A19D94]">
+                  Loading your whiteboards...
+                </div>
+              ) : rooms.length === 0 ? (
+                <div className="py-8 text-center border border-dashed border-[#E5E0D8] rounded-xl text-xs font-mono text-[#A19D94] bg-[#FAF8F5]">
+                  No whiteboards created yet.
+                </div>
+              ) : (
+                rooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="flex items-center justify-between p-3 rounded-xl border border-[#E5E0D8] bg-[#FAF8F5] hover:bg-white hover:border-[#1E1E1E] transition-all group cursor-pointer"
+                    onClick={() => {
+                      router.push(`/canvas/${room.slug}`);
+                      setIsModalOpen(false);
+                    }}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold text-[#1E1E1E] font-mono">
+                        {room.slug}
+                      </span>
+                      <span className="text-[10px] text-[#A19D94] font-mono">
+                        Created {new Date(room.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-[#706B5F] hover:text-[#D95F4D] hover:bg-[#FDF3F2] rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => handleDeleteRoom(room.id, e)}
+                    >
+                      <Trash className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="border-t border-[#E5E0D8] pt-5">
+              <form onSubmit={handleCreateOrJoinRoom} className="flex flex-col gap-3">
+                <Input
+                  label="Create or Join Custom Room Slug"
+                  placeholder="Enter page slug (e.g. wireframe-design)"
+                  value={roomSlug}
+                  onChange={(e) => setRoomSlug(e.target.value)}
+                  required
+                />
+                {error && <p className="text-xs text-[#D95F4D]">{error}</p>}
+                <div className="flex gap-2.5 mt-2 justify-end">
+                  <Button variant="secondary" size="sm" type="button" onClick={() => setIsModalOpen(false)}>
+                    Close
+                  </Button>
+                  <Button variant="primary" size="sm" type="submit" isLoading={loading}>
+                    Open Canvas Page
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

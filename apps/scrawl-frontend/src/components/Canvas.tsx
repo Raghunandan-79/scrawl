@@ -76,6 +76,159 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const [undoStack, setUndoStack] = useState<CanvasElement[][]>([]);
   const [redoStack, setRedoStack] = useState<CanvasElement[][]>([]);
 
+  const lastMouseClientPos = useRef<Point>({ x: 0, y: 0 });
+
+  // Refs to avoid stale closures in animation loops
+  const toolRef = useRef(tool);
+  const activeElementRef = useRef(activeElement);
+  const selectedElementIdRef = useRef(selectedElementId);
+  const dragModeRef = useRef(dragMode);
+  const dragOffsetRef = useRef(dragOffset);
+  const resizeHandleRef = useRef(resizeHandle);
+  const startPointRef = useRef(startPoint);
+  const panRef = useRef(pan);
+
+  useEffect(() => { toolRef.current = tool; }, [tool]);
+  useEffect(() => { activeElementRef.current = activeElement; }, [activeElement]);
+  useEffect(() => { selectedElementIdRef.current = selectedElementId; }, [selectedElementId]);
+  useEffect(() => { dragModeRef.current = dragMode; }, [dragMode]);
+  useEffect(() => { dragOffsetRef.current = dragOffset; }, [dragOffset]);
+  useEffect(() => { resizeHandleRef.current = resizeHandle; }, [resizeHandle]);
+  useEffect(() => { startPointRef.current = startPoint; }, [startPoint]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+
+  useEffect(() => {
+    if (!isDrawing || tool === "hand") return;
+
+    let animationFrameId: number;
+
+    const tick = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const clientX = lastMouseClientPos.current.x;
+      const clientY = lastMouseClientPos.current.y;
+
+      if (clientX === 0 && clientY === 0) {
+        animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+
+      let scrollX = 0;
+      let scrollY = 0;
+      const edgeThreshold = 40;
+      const maxSpeed = 12;
+
+      if (clientX < rect.left + edgeThreshold) {
+        scrollX = Math.max(1, ((rect.left + edgeThreshold - clientX) / edgeThreshold) * maxSpeed);
+      } else if (clientX > rect.right - edgeThreshold) {
+        scrollX = -Math.max(1, ((clientX - (rect.right - edgeThreshold)) / edgeThreshold) * maxSpeed);
+      }
+
+      if (clientY < rect.top + edgeThreshold) {
+        scrollY = Math.max(1, ((rect.top + edgeThreshold - clientY) / edgeThreshold) * maxSpeed);
+      } else if (clientY > rect.bottom - edgeThreshold) {
+        scrollY = -Math.max(1, ((clientY - (rect.bottom - edgeThreshold)) / edgeThreshold) * maxSpeed);
+      }
+
+      if (scrollX !== 0 || scrollY !== 0) {
+        setPan((prev) => {
+          const nextPan = { x: prev.x + scrollX, y: prev.y + scrollY };
+          
+          const mouseWorldPos = {
+            x: (clientX - rect.left - nextPan.x) / zoom,
+            y: (clientY - rect.top - nextPan.y) / zoom,
+          };
+
+          if (toolRef.current === "select" && selectedElementIdRef.current) {
+            setElements((elementsPrev) =>
+              elementsPrev.map((el) => {
+                if (el.id !== selectedElementIdRef.current) return el;
+
+                if (dragModeRef.current === "move") {
+                  return {
+                    ...el,
+                    x: mouseWorldPos.x - dragOffsetRef.current.x,
+                    y: mouseWorldPos.y - dragOffsetRef.current.y,
+                  };
+                }
+
+                if (dragModeRef.current === "resize" && resizeHandleRef.current) {
+                  let x = el.x;
+                  let y = el.y;
+                  let width = el.width;
+                  let height = el.height;
+
+                  const xMin = Math.min(el.x, el.x + el.width);
+                  const xMax = Math.max(el.x, el.x + el.width);
+                  const yMin = Math.min(el.y, el.y + el.height);
+                  const yMax = Math.max(el.y, el.y + el.height);
+
+                  switch (resizeHandleRef.current) {
+                    case "nw":
+                      x = mouseWorldPos.x;
+                      y = mouseWorldPos.y;
+                      width = xMax - mouseWorldPos.x;
+                      height = yMax - mouseWorldPos.y;
+                      break;
+                    case "ne":
+                      y = mouseWorldPos.y;
+                      width = mouseWorldPos.x - xMin;
+                      height = yMax - mouseWorldPos.y;
+                      break;
+                    case "se":
+                      width = mouseWorldPos.x - xMin;
+                      height = mouseWorldPos.y - yMin;
+                      break;
+                    case "sw":
+                      x = mouseWorldPos.x;
+                      width = xMax - mouseWorldPos.x;
+                      height = mouseWorldPos.y - yMin;
+                      break;
+                  }
+
+                  return { ...el, x, y, width, height };
+                }
+
+                return el;
+              })
+            );
+          } else if (activeElementRef.current) {
+            if (activeElementRef.current.type === "pencil") {
+              setActiveElement((activePrev) => {
+                if (!activePrev || !activePrev.points) return activePrev;
+                return {
+                  ...activePrev,
+                  points: [...activePrev.points, mouseWorldPos],
+                };
+              });
+            } else {
+              setActiveElement((activePrev) => {
+                if (!activePrev) return activePrev;
+                return {
+                  ...activePrev,
+                  width: mouseWorldPos.x - startPointRef.current.x,
+                  height: mouseWorldPos.y - startPointRef.current.y,
+                };
+              });
+            }
+          }
+
+          return nextPan;
+        });
+      }
+
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isDrawing, zoom]);
+
   // Socket
   const { socket, loading } = useSocket();
 
@@ -497,13 +650,19 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     setActiveElement(newElement);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const mousePos = getMouseWorldPos(e);
-
-    if (!isDrawing) return;
+  const updateDrawingState = (clientX: number, clientY: number, currentPan: Point) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Calculate world position based on currentPan
+    const mouseWorldPos = {
+      x: (clientX - rect.left - currentPan.x) / zoom,
+      y: (clientY - rect.top - currentPan.y) / zoom,
+    };
 
     if (tool === "eraser") {
-      const clickedEl = getElementAtPosition(mousePos.x, mousePos.y);
+      const clickedEl = getElementAtPosition(mouseWorldPos.x, mouseWorldPos.y);
       if (clickedEl) {
         setElements((prev) => prev.filter((el) => el.id !== clickedEl.id));
         setMyElements((prev) => prev.filter((id) => id !== clickedEl.id));
@@ -513,10 +672,6 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     }
 
     if (tool === "hand") {
-      const dx = e.clientX - startPoint.x;
-      const dy = e.clientY - startPoint.y;
-      setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      setStartPoint({ x: e.clientX, y: e.clientY });
       return;
     }
 
@@ -526,12 +681,11 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           if (el.id !== selectedElementId) return el;
 
           if (dragMode === "move") {
-            const updated = {
+            return {
               ...el,
-              x: mousePos.x - dragOffset.x,
-              y: mousePos.y - dragOffset.y,
+              x: mouseWorldPos.x - dragOffset.x,
+              y: mouseWorldPos.y - dragOffset.y,
             };
-            return updated;
           }
 
           if (dragMode === "resize" && resizeHandle) {
@@ -547,24 +701,24 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
             switch (resizeHandle) {
               case "nw":
-                x = mousePos.x;
-                y = mousePos.y;
-                width = xMax - mousePos.x;
-                height = yMax - mousePos.y;
+                x = mouseWorldPos.x;
+                y = mouseWorldPos.y;
+                width = xMax - mouseWorldPos.x;
+                height = yMax - mouseWorldPos.y;
                 break;
               case "ne":
-                y = mousePos.y;
-                width = mousePos.x - xMin;
-                height = yMax - mousePos.y;
+                y = mouseWorldPos.y;
+                width = mouseWorldPos.x - xMin;
+                height = yMax - mouseWorldPos.y;
                 break;
               case "se":
-                width = mousePos.x - xMin;
-                height = mousePos.y - yMin;
+                width = mouseWorldPos.x - xMin;
+                height = mouseWorldPos.y - yMin;
                 break;
               case "sw":
-                x = mousePos.x;
-                width = xMax - mousePos.x;
-                height = mousePos.y - yMin;
+                x = mouseWorldPos.x;
+                width = xMax - mouseWorldPos.x;
+                height = mouseWorldPos.y - yMin;
                 break;
             }
 
@@ -579,13 +733,12 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
     if (!activeElement) return;
 
-    // Handle shape update while dragging
     if (activeElement.type === "pencil") {
       setActiveElement((prev) => {
         if (!prev || !prev.points) return prev;
         return {
           ...prev,
-          points: [...prev.points, mousePos],
+          points: [...prev.points, mouseWorldPos],
         };
       });
     } else {
@@ -593,11 +746,28 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         if (!prev) return prev;
         return {
           ...prev,
-          width: mousePos.x - startPoint.x,
-          height: mousePos.y - startPoint.y,
+          width: mouseWorldPos.x - startPoint.x,
+          height: mouseWorldPos.y - startPoint.y,
         };
       });
     }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Record current mouse position
+    lastMouseClientPos.current = { x: e.clientX, y: e.clientY };
+
+    if (!isDrawing) return;
+
+    if (tool === "hand") {
+      const dx = e.clientX - startPoint.x;
+      const dy = e.clientY - startPoint.y;
+      setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      setStartPoint({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    updateDrawingState(e.clientX, e.clientY, pan);
   };
 
   const handleMouseUp = () => {

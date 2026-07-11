@@ -32,18 +32,9 @@ interface CanvasProps {
   roomSlug: string;
   initialElements: CanvasElement[];
   isReadOnly?: boolean;
-  socketError?: string | null;
-  socketLoading?: boolean;
 }
 
-export function Canvas({
-  roomId,
-  roomSlug,
-  initialElements,
-  isReadOnly = false,
-  socketError = null,
-  socketLoading = false,
-}: CanvasProps) {
+export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }: CanvasProps) {
   const router = useRouter();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState(false);
@@ -1407,31 +1398,7 @@ export function Canvas({
       )}
 
       {/* Control Actions - Floating right top */}
-      <div className="absolute top-6 right-6 z-10 flex gap-2 items-center">
-        {/* WebSocket Connection Status Badge */}
-        {roomId === "guest" ? (
-          <div className="flex items-center gap-1.5 bg-[#E5E0D8]/60 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold text-[#706B5F] shadow-sm select-none">
-            GUEST MODE
-          </div>
-        ) : socketLoading ? (
-          <div className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold text-yellow-600 animate-pulse shadow-sm select-none">
-            <span className="h-1.5 w-1.5 rounded-full bg-yellow-400"></span>
-            CONNECTING...
-          </div>
-        ) : socketError || !socket ? (
-          <div
-            className="flex items-center gap-1.5 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold text-red-500 cursor-help shadow-sm select-none"
-            title={socketError || "WebSocket connection failed. Draw locally; updates won't broadcast."}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></span>
-            OFFLINE
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold text-green-600 shadow-sm select-none">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-            LIVE
-          </div>
-        )}
+      <div className="absolute top-6 right-6 z-10 flex gap-2">
         {!isReadOnly && (
           <>
             <Button

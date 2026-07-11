@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BACKEND_URL } from "../app/config";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
+import { ArrowLeft } from "lucide-react";
 
 export function AuthPage({ isSignin }: { isSignin: boolean }) {
   const router = useRouter();
@@ -66,7 +67,19 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5] px-4 py-12 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5] px-4 py-12 sm:px-6 lg:px-8 font-sans relative">
+      {/* Back to Home Button - Floating Top Left */}
+      <div className="absolute top-6 left-6">
+        <Button
+          variant="secondary"
+          onClick={() => router.push("/")}
+          className="flex items-center gap-1.5 font-mono text-xs shadow-sm bg-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">BACK TO HOME</span>
+          <span className="sm:hidden">HOME</span>
+        </Button>
+      </div>
       <div className="max-w-md w-full space-y-8 bg-white border border-[#E5E0D8] p-8 rounded-xl shadow-[0_4px_24px_rgba(229,224,216,0.25)] relative overflow-hidden">
         {/* Monospace accent line at the top */}
         <div className="absolute top-0 left-0 w-full h-1 bg-[#D95F4D]"></div>

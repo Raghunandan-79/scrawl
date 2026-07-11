@@ -22,7 +22,9 @@ export default function CanvasRoomPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
+    const isGuest = pathIdOrSlug === "guest";
+
+    if (!token && !isGuest) {
       router.push("/signin");
       return;
     }
@@ -34,6 +36,20 @@ export default function CanvasRoomPage() {
         let activeRoomId = "";
         let activeRoomSlug = "";
         let readMode = true;
+
+        if (isGuest) {
+          activeRoomId = "guest";
+          activeRoomSlug = "guest";
+          readMode = false;
+
+          const stored = localStorage.getItem("guest_canvas_elements");
+          setInitialElements(stored ? JSON.parse(stored) : []);
+          setResolvedRoomId(activeRoomId);
+          setResolvedRoomSlug(activeRoomSlug);
+          setIsReadOnly(readMode);
+          setLoading(false);
+          return;
+        }
 
         if (isNumeric) {
           // It's the numerical ID -> Read Only mode

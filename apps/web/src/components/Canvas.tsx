@@ -297,6 +297,13 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     return () => clearInterval(interval);
   }, []);
 
+  // Save guest canvas to localStorage
+  useEffect(() => {
+    if (roomId === "guest") {
+      localStorage.setItem("guest_canvas_elements", JSON.stringify(elements));
+    }
+  }, [elements, roomId]);
+
   // Process canvas action from collab partners
   const handleCollaborativeAction = (action: CanvasAction) => {
     setElements((prev) => {
@@ -1272,15 +1279,17 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
             </Button>
           </>
         )}
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={handleExport}
-          title="Export as PNG image"
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-        {!isReadOnly && roomSlug && (
+        {roomId !== "guest" && (
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={handleExport}
+            title="Export as PNG image"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        )}
+        {!isReadOnly && roomSlug && roomId !== "guest" && (
           <Button
             variant="secondary"
             onClick={() => setIsShareModalOpen(true)}

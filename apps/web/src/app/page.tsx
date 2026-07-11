@@ -279,16 +279,26 @@ export default function Home() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => router.push("/signup")}
-              className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase"
-            >
-              Get Started
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => router.push("/signup")}
+                className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase"
+              >
+                Get Started
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => router.push("/canvas/guest")}
+                className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase bg-white border border-[#E5E0D8]"
+              >
+                Try as Guest
+              </Button>
+            </div>
             <span className="font-mono text-[10px] tracking-widest text-[#A19D94] uppercase">
-              No account required to start
+              Free local workspace • One canvas per device
             </span>
           </div>
         )}

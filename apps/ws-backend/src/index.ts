@@ -28,7 +28,7 @@ function checkUser(token: string): string | null {
   }
 }
 
-wss.on("connection", function connection(ws, request) {
+wss.on("connection", async function connection(ws, request) {
   const origin = request.headers.origin;
   const ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -54,8 +54,21 @@ wss.on("connection", function connection(ws, request) {
     return;
   }
 
+  let userName = "Collaborator";
+  try {
+    const user = await prismaClient.user.findUnique({
+      where: { id: userId },
+      select: { name: true, username: true },
+    });
+    if (user) {
+      userName = user.name || user.username;
+    }
+  } catch (err) {
+    console.error("Failed to fetch user name:", err);
+  }
+
   // Register active connection
-  stateManager.addConnection(ws, userId);
+  stateManager.addConnection(ws, userId, userName);
 
   // Setup disconnect cleanup
   ws.on("close", () => {
@@ -84,6 +97,30 @@ wss.on("connection", function connection(ws, request) {
     if (parsedData.type === "leave_room") {
       stateManager.leaveRoom(ws, parsedData.room);
       console.log(`User left room: ${parsedData.room}`);
+    }
+
+    if (parsedData.type === "cursor_move") {
+      const roomId = parsedData.roomId;
+      const x = parsedData.x;
+      const y = parsedData.y;
+      const connInfo = stateManager.getConnectionInfo(ws);
+      if (connInfo) {
+        const roomSockets = stateManager.getRoomSockets(roomId);
+        roomSockets.forEach((s) => {
+          if (s !== ws && s.readyState === WebSocket.OPEN) {
+            s.send(
+              JSON.stringify({
+                type: "cursor_move",
+                userId: connInfo.userId,
+                userName: connInfo.userName,
+                x,
+                y,
+                roomId,
+              })
+            );
+          }
+        });
+      }
     }
 
     if (parsedData.type === "chat") {

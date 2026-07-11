@@ -2,6 +2,7 @@ import { WebSocket } from "ws";
 
 interface UserConnection {
   userId: string;
+  userName: string;
   rooms: Set<string>;
 }
 
@@ -23,9 +24,10 @@ export class SocketStateManager {
     return SocketStateManager.instance;
   }
 
-  public addConnection(ws: WebSocket, userId: string) {
+  public addConnection(ws: WebSocket, userId: string, userName: string) {
     this.connections.set(ws, {
       userId,
+      userName,
       rooms: new Set(),
     });
   }

@@ -58,6 +58,11 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
 
+  // Collaborator cursors state
+  const [collaboratorCursors, setCollaboratorCursors] = useState<
+    Record<string, { x: number; y: number; userName: string; updatedAt: number }>
+  >({});
+
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point>({ x: 0, y: 0 });
@@ -255,6 +260,16 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           if (parsedData.type === "chat" && parsedData.roomId === roomId.toString()) {
             const action: CanvasAction = JSON.parse(parsedData.message);
             handleCollaborativeAction(action);
+          } else if (parsedData.type === "cursor_move" && parsedData.roomId === roomId.toString()) {
+            setCollaboratorCursors((prev) => ({
+              ...prev,
+              [parsedData.userId]: {
+                x: parsedData.x,
+                y: parsedData.y,
+                userName: parsedData.userName,
+                updatedAt: Date.now(),
+              },
+            }));
           }
         } catch (e) {
           console.error("Error processing websocket message:", e);
@@ -262,6 +277,25 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       };
     }
   }, [socket, loading, roomId]);
+
+  // Periodic cleanup of stale cursors (inactive/offline collaborators)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCollaboratorCursors((prev) => {
+        const now = Date.now();
+        let changed = false;
+        const next = { ...prev };
+        for (const [userId, cursor] of Object.entries(prev)) {
+          if (now - cursor.updatedAt >= 3000) {
+            delete next[userId];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Process canvas action from collab partners
   const handleCollaborativeAction = (action: CanvasAction) => {
@@ -470,7 +504,68 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     }
 
     ctx.restore();
-  }, [elements, activeElement, selectedElementId, zoom, pan, roughMode, tool]);
+
+    // Render collaborator cursors in screen space
+    const activeCursors = Object.entries(collaboratorCursors).filter(
+      ([_, c]) => Date.now() - c.updatedAt < 3000
+    );
+
+    activeCursors.forEach(([userId, cursor]) => {
+      const screenX = cursor.x * zoom + pan.x;
+      const screenY = cursor.y * zoom + pan.y;
+
+      ctx.save();
+      ctx.translate(screenX, screenY);
+
+      // Stable color based on username
+      const colors = ["#D95F4D", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
+      const charCodeSum = cursor.userName.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      const color = colors[charCodeSum % colors.length];
+
+      ctx.fillStyle = color;
+      ctx.strokeStyle = "#FAF8F5";
+      ctx.lineWidth = 1.5;
+
+      // Draw mouse cursor arrow (pointing top-left)
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, 16);
+      ctx.lineTo(4.5, 12);
+      ctx.lineTo(8.5, 20);
+      ctx.lineTo(11, 19);
+      ctx.lineTo(7, 11);
+      ctx.lineTo(12, 11);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Draw name tag
+      ctx.font = "bold 11px sans-serif";
+      const nameWidth = ctx.measureText(cursor.userName).width;
+      
+      ctx.fillStyle = color;
+      const paddingX = 6;
+      const paddingY = 4;
+      const tagX = 12;
+      const tagY = 12;
+      const tagWidth = nameWidth + paddingX * 2;
+      const tagHeight = 16 + paddingY;
+
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(tagX, tagY, tagWidth, tagHeight, 4);
+      } else {
+        ctx.rect(tagX, tagY, tagWidth, tagHeight);
+      }
+      ctx.fill();
+
+      // Text label inside the name tag
+      ctx.fillStyle = "#FAF8F5";
+      ctx.fillText(cursor.userName, tagX + paddingX, tagY + 12);
+
+      ctx.restore();
+    });
+  }, [elements, activeElement, selectedElementId, zoom, pan, roughMode, tool, collaboratorCursors]);
 
   // Handle infinite scroll wheel and zoom events
   useEffect(() => {
@@ -753,9 +848,30 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     }
   };
 
+  const lastCursorSent = useRef<number>(0);
+  const sendCursorPosition = (x: number, y: number) => {
+    const now = Date.now();
+    if (now - lastCursorSent.current > 50) { // Throttle 50ms
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(
+          JSON.stringify({
+            type: "cursor_move",
+            roomId: roomId.toString(),
+            x,
+            y,
+          })
+        );
+        lastCursorSent.current = now;
+      }
+    }
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     // Record current mouse position
     lastMouseClientPos.current = { x: e.clientX, y: e.clientY };
+
+    const mouseWorldPos = getMouseWorldPos(e);
+    sendCursorPosition(mouseWorldPos.x, mouseWorldPos.y);
 
     if (!isDrawing) return;
 

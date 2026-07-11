@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.tsx";
 
 :root {
   --background: #FAF8F5;

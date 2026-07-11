@@ -6,11 +6,14 @@ import chatsRouter from "./routes/chats.js";
 const app = express();
 app.use(express.json());
 
-const ALLOWED_ORIGIN_REGEX = /^(https?:\/\/localhost:3000|https:\/\/.*\.raghunandan\.dev|https:\/\/.*\.onrender\.com)$/;
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "https://scrawl.raghunandan.dev",
+];
 
 app.use((req, res, next) => {
     const origin = req.headers.origin as string;
-    if (origin && ALLOWED_ORIGIN_REGEX.test(origin)) {
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
         res.setHeader("Access-Control-Allow-Origin", origin);
     }
     res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, token");

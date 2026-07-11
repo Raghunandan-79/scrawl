@@ -4,8 +4,10 @@ import { JWT_SECRET } from "@repo/backend-common/config";
 import { prismaClient } from "@repo/db/client";
 import { SocketStateManager } from "./StateManager.js";
 
-const wss = new WebSocketServer({ port: 8080 });
+const PORT = Number(process.env.PORT) || 8080;
+const wss = new WebSocketServer({ port: PORT });
 const stateManager = SocketStateManager.getInstance();
+console.log(`ws-backend listening on ${PORT}`);
 
 function checkUser(token: string): string | null {
   try {
@@ -30,7 +32,7 @@ wss.on("connection", function connection(ws, request) {
   const origin = request.headers.origin;
   const ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://scrawl.raghunandan.dev",
+    ...(process.env.ALLOWED_ORIGINS?.split(",") ?? []),
   ];
   if (origin && !ALLOWED_ORIGINS.includes(origin)) {
     console.warn(`Connection rejected: unauthorized origin: ${origin}`);

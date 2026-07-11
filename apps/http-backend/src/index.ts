@@ -8,7 +8,7 @@ app.use(express.json());
 
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
-  "https://scrawl.raghunandan.dev",
+  ...(process.env.ALLOWED_ORIGINS?.split(",") ?? []),
 ];
 
 app.use((req, res, next) => {
@@ -35,4 +35,5 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/room", roomRouter);
 app.use("/api/v1/chats", chatsRouter);
 
-app.listen(3002);
+const PORT = process.env.PORT || 3002;
+app.listen(PORT, () => console.log(`http-backend listening on ${PORT}`));

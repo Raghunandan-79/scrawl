@@ -1,3 +1,4 @@
+import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
@@ -5,9 +6,34 @@ import { prismaClient } from "@repo/db/client";
 import { SocketStateManager } from "./StateManager.js";
 
 const PORT = Number(process.env.PORT) || 8080;
-const wss = new WebSocketServer({ port: PORT });
+
+const server = createServer((req, res) => {
+  if (req.url === "/health" || req.url === "/") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "healthy" }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+
+const wss = new WebSocketServer({ server });
 const stateManager = SocketStateManager.getInstance();
-console.log(`ws-backend listening on ${PORT}`);
+
+server.listen(PORT, () => {
+  console.log(`ws-backend listening on ${PORT}`);
+});
+
+// Self-ping keeping Render Free Tier awake
+const selfUrl = process.env.RENDER_EXTERNAL_URL;
+if (selfUrl) {
+  console.log(`Self-ping keep-alive registered for: ${selfUrl}`);
+  setInterval(() => {
+    fetch(selfUrl)
+      .then((res) => console.log(`Self-ping successful: status ${res.status}`))
+      .catch((err) => console.error("Self-ping failed:", err));
+  }, 10 * 60 * 1000); // every 10 minutes
+}
 
 function checkUser(token: string): string | null {
   try {

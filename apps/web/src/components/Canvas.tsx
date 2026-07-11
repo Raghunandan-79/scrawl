@@ -92,6 +92,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const resizeHandleRef = useRef(resizeHandle);
   const startPointRef = useRef(startPoint);
   const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
 
   useEffect(() => { toolRef.current = tool; }, [tool]);
   useEffect(() => { activeElementRef.current = activeElement; }, [activeElement]);
@@ -101,6 +102,15 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   useEffect(() => { resizeHandleRef.current = resizeHandle; }, [resizeHandle]);
   useEffect(() => { startPointRef.current = startPoint; }, [startPoint]);
   useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  // Window resize tracking state
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
+  // Pinch to zoom state variables
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartZoom = useRef<number>(1);
+  const isPinching = useRef<boolean>(false);
 
   useEffect(() => {
     if (!isDrawing || tool === "hand") return;
@@ -453,16 +463,23 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Reset size
-    canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-    canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+    // Reset size scaled by devicePixelRatio for high-DPI screens
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const displayWidth = canvas.parentElement?.clientWidth || window.innerWidth;
+    const displayHeight = canvas.parentElement?.clientHeight || window.innerHeight;
 
-    // Clear
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+
+    // Clear using full buffer size
     ctx.fillStyle = "#FAF8F5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Apply zoom & pan
+    // Apply dpr scale, zoom & pan
     ctx.save();
+    ctx.scale(dpr, dpr);
     ctx.translate(pan.x, pan.y);
     ctx.scale(zoom, zoom);
 
@@ -572,7 +589,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
       ctx.restore();
     });
-  }, [elements, activeElement, selectedElementId, zoom, pan, roughMode, tool, collaboratorCursors]);
+  }, [elements, activeElement, selectedElementId, zoom, pan, roughMode, tool, collaboratorCursors, canvasSize]);
 
   // Handle infinite scroll wheel and zoom events
   useEffect(() => {
@@ -657,12 +674,14 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   // Handle Resize of canvas on screen size change
   useEffect(() => {
     const handleResize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-      canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+      const parent = canvasRef.current?.parentElement;
+      setCanvasSize({
+        width: parent?.clientWidth || window.innerWidth,
+        height: parent?.clientHeight || window.innerHeight,
+      });
     };
     window.addEventListener("resize", handleResize);
+    handleResize(); // trigger initial size computation
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
@@ -952,25 +971,72 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     if (!canvas) return;
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 0) return;
-      if (toolRef.current !== "hand" && toolRef.current !== "select") {
-        if (e.cancelable) e.preventDefault();
+      if (e.touches.length === 2) {
+        setIsDrawing(false);
+        setActiveElement(null);
+        isPinching.current = true;
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        pinchStartDist.current = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        pinchStartZoom.current = zoomRef.current;
+        return;
       }
-      const touch = e.touches[0];
-      handleStart(touch.clientX, touch.clientY);
+
+      if (e.touches.length === 1 && !isPinching.current) {
+        if (toolRef.current !== "hand" && toolRef.current !== "select") {
+          if (e.cancelable) e.preventDefault();
+        }
+        const touch = e.touches[0];
+        handleStart(touch.clientX, touch.clientY);
+      }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 0) return;
-      if (toolRef.current !== "hand" && toolRef.current !== "select") {
+      if (e.touches.length === 2 && isPinching.current && pinchStartDist.current !== null) {
         if (e.cancelable) e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        const factor = currentDist / pinchStartDist.current;
+        const newZoom = Math.min(10, Math.max(0.1, pinchStartZoom.current * factor));
+
+        const midX = (touch1.clientX + touch2.clientX) / 2;
+        const midY = (touch1.clientY + touch2.clientY) / 2;
+
+        const rect = canvas.getBoundingClientRect();
+        const currentZoom = zoomRef.current;
+        const currentPan = panRef.current;
+        
+        // World position before zoom change
+        const worldX = (midX - rect.left - currentPan.x) / currentZoom;
+        const worldY = (midY - rect.top - currentPan.y) / currentZoom;
+
+        setZoom(newZoom);
+        setPan({
+          x: midX - rect.left - worldX * newZoom,
+          y: midY - rect.top - worldY * newZoom,
+        });
+        return;
       }
-      const touch = e.touches[0];
-      handleMove(touch.clientX, touch.clientY);
+
+      if (e.touches.length === 1 && !isPinching.current) {
+        if (toolRef.current !== "hand" && toolRef.current !== "select") {
+          if (e.cancelable) e.preventDefault();
+        }
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
+      }
     };
 
-    const onTouchEnd = () => {
-      handleEnd();
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0) {
+        isPinching.current = false;
+        pinchStartDist.current = null;
+        handleEnd();
+      } else if (e.touches.length === 1) {
+        isPinching.current = false;
+        pinchStartDist.current = null;
+      }
     };
 
     canvas.addEventListener("touchstart", onTouchStart, { passive: false });
@@ -1000,6 +1066,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     fillColor,
     strokeWidth,
     strokeStyle,
+    canvasSize,
   ]);
 
   // Text tools helper

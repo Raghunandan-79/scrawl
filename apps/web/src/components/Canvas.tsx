@@ -667,7 +667,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   }, []);
 
   // Mouse Handlers
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleStart = (clientX: number, clientY: number) => {
     if (textInput) {
       // Complete text edit
       commitTextInput();
@@ -677,12 +677,19 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     if (isReadOnly) {
       if (tool === "hand") {
         setIsDrawing(true);
-        setStartPoint({ x: e.clientX, y: e.clientY });
+        setStartPoint({ x: clientX, y: clientY });
       }
       return;
     }
 
-    const mousePos = getMouseWorldPos(e);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mousePos = {
+      x: (clientX - rect.left - pan.x) / zoom,
+      y: (clientY - rect.top - pan.y) / zoom,
+    };
+
     setIsDrawing(true);
     setStartPoint(mousePos);
 
@@ -701,7 +708,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     }
 
     if (tool === "hand") {
-      setStartPoint({ x: e.clientX, y: e.clientY });
+      setStartPoint({ x: clientX, y: clientY });
       return;
     }
 
@@ -873,27 +880,32 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMove = (clientX: number, clientY: number) => {
     // Record current mouse position
-    lastMouseClientPos.current = { x: e.clientX, y: e.clientY };
+    lastMouseClientPos.current = { x: clientX, y: clientY };
 
-    const mouseWorldPos = getMouseWorldPos(e);
-    sendCursorPosition(mouseWorldPos.x, mouseWorldPos.y);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const worldX = (clientX - rect.left - pan.x) / zoom;
+    const worldY = (clientY - rect.top - pan.y) / zoom;
+
+    sendCursorPosition(worldX, worldY);
 
     if (!isDrawing) return;
 
     if (tool === "hand") {
-      const dx = e.clientX - startPoint.x;
-      const dy = e.clientY - startPoint.y;
+      const dx = clientX - startPoint.x;
+      const dy = clientY - startPoint.y;
       setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      setStartPoint({ x: e.clientX, y: e.clientY });
+      setStartPoint({ x: clientX, y: clientY });
       return;
     }
 
-    updateDrawingState(e.clientX, e.clientY, pan);
+    updateDrawingState(clientX, clientY, pan);
   };
 
-  const handleMouseUp = () => {
+  const handleEnd = () => {
     setIsDrawing(false);
     setDragMode(null);
     setResizeHandle(null);
@@ -919,6 +931,42 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         broadcastAction({ type: "update", element: updated });
       }
     }
+  };
+
+  // Mouse Handlers
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    handleStart(e.clientX, e.clientY);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    handleMove(e.clientX, e.clientY);
+  };
+
+  const handleMouseUp = () => {
+    handleEnd();
+  };
+
+  // Touch Handlers
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 0) return;
+    if (tool !== "hand" && tool !== "select") {
+      if (e.cancelable) e.preventDefault();
+    }
+    const touch = e.touches[0];
+    handleStart(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 0) return;
+    if (tool !== "hand" && tool !== "select") {
+      if (e.cancelable) e.preventDefault();
+    }
+    const touch = e.touches[0];
+    handleMove(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchEnd = () => {
+    handleEnd();
   };
 
   // Text tools helper
@@ -1029,10 +1077,13 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       {/* Canvas view */}
       <canvas
         ref={canvasRef}
-        className="w-full h-full block cursor-crosshair"
+        className="w-full h-full block cursor-crosshair touch-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
 
       {/* Floating text edit area */}

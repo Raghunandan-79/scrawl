@@ -1283,7 +1283,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
       {/* Styles sidebar - Floating left */}
       {!isReadOnly && (
-        <div className={`absolute top-20 md:top-6 left-6 z-10 flex flex-col gap-6 bg-[#FAF8F5] border border-[#E5E0D8] p-5 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] w-56 transition-all ${
+        <div className={`absolute top-20 left-6 z-10 flex flex-col gap-6 bg-[#FAF8F5] border border-[#E5E0D8] p-5 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] w-56 transition-all ${
           showMobileStyles ? "flex" : "hidden md:flex"
         }`}>
         <div>

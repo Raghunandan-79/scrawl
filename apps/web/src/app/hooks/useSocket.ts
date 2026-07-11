@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { WS_URL } from "../config";
 
 export function useSocket() {
-  const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -14,27 +15,66 @@ export function useSocket() {
       return;
     }
 
-    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    let ws: WebSocket | null = null;
+    let pingInterval: NodeJS.Timeout | null = null;
 
-    ws.onopen = () => {
-      setLoading(false);
-      setSocket(ws);
-      setError(null);
+    const connect = () => {
+      // Clean up previous socket if it exists
+      if (ws) {
+        try {
+          ws.close();
+        } catch (e) {}
+      }
+
+      ws = new WebSocket(`${WS_URL}?token=${token}`);
+
+      ws.onopen = () => {
+        setSocket(ws);
+        setLoading(false);
+        setError(null);
+
+        // Start ping heartbeat interval to prevent idle timeouts (every 25 seconds)
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 25000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket connection error:", err);
+        setError("WebSocket connection failed.");
+      };
+
+      ws.onclose = () => {
+        setSocket(null);
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
+
+        // Schedule auto-reconnect after 3 seconds
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log("Attempting WebSocket reconnection...");
+          connect();
+        }, 3000);
+      };
     };
 
-    ws.onerror = (err) => {
-      console.error("WebSocket connection error:", err);
-      setError("WebSocket connection failed.");
-      setLoading(false);
-    };
-
-    ws.onclose = () => {
-      setSocket(null);
-      setLoading(false);
-    };
+    connect();
 
     return () => {
-      ws.close();
+      if (pingInterval) clearInterval(pingInterval);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (ws) {
+        // Remove listeners before closing to prevent reconnect loops on unmount
+        ws.onopen = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close();
+      }
     };
   }, []);
 

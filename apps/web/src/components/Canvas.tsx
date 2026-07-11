@@ -946,28 +946,61 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     handleEnd();
   };
 
-  // Touch Handlers
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (e.touches.length === 0) return;
-    if (tool !== "hand" && tool !== "select") {
-      if (e.cancelable) e.preventDefault();
-    }
-    const touch = e.touches[0];
-    handleStart(touch.clientX, touch.clientY);
-  };
+  // Manual non-passive touch event listeners for preventing browser scrolling while drawing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (e.touches.length === 0) return;
-    if (tool !== "hand" && tool !== "select") {
-      if (e.cancelable) e.preventDefault();
-    }
-    const touch = e.touches[0];
-    handleMove(touch.clientX, touch.clientY);
-  };
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      if (toolRef.current !== "hand" && toolRef.current !== "select") {
+        if (e.cancelable) e.preventDefault();
+      }
+      const touch = e.touches[0];
+      handleStart(touch.clientX, touch.clientY);
+    };
 
-  const handleTouchEnd = () => {
-    handleEnd();
-  };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      if (toolRef.current !== "hand" && toolRef.current !== "select") {
+        if (e.cancelable) e.preventDefault();
+      }
+      const touch = e.touches[0];
+      handleMove(touch.clientX, touch.clientY);
+    };
+
+    const onTouchEnd = () => {
+      handleEnd();
+    };
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
+
+    return () => {
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [
+    elements,
+    activeElement,
+    selectedElementId,
+    dragMode,
+    resizeHandle,
+    dragOffset,
+    startPoint,
+    pan,
+    zoom,
+    roughMode,
+    tool,
+    textInput,
+    isReadOnly,
+    strokeColor,
+    fillColor,
+    strokeWidth,
+    strokeStyle,
+  ]);
 
   // Text tools helper
   const commitTextInput = () => {
@@ -1081,9 +1114,6 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       />
 
       {/* Floating text edit area */}
@@ -1117,39 +1147,41 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       )}
 
       {/* Toolbar - Floating bottom */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 md:gap-1.5 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 md:p-2 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.5)] max-w-[95vw] overflow-x-auto scrollbar-none whitespace-nowrap">
-        {[
-          { id: "select", icon: MousePointer, label: "Select (V)" },
-          { id: "hand", icon: Hand, label: "Pan (H)" },
-          { id: "rect", icon: Square, label: "Rectangle (R)" },
-          { id: "ellipse", icon: Circle, label: "Circle (O)" },
-          { id: "line", icon: Minus, label: "Line (L)" },
-          { id: "arrow", icon: ArrowRight, label: "Arrow (A)" },
-          { id: "pencil", icon: Pencil, label: "Pencil (P)" },
-          { id: "text", icon: Type, label: "Text (T)" },
-          { id: "eraser", icon: Eraser, label: "Eraser (E)" },
-        ].filter((t) => !isReadOnly || t.id === "select" || t.id === "hand").map((t) => {
-          const IconComp = t.icon;
-          const isActive = tool === t.id;
-          return (
-            <Button
-              key={t.id}
-              variant={isActive ? "active" : "ghost"}
-              size="icon"
-              className="relative group transition-all"
-              onClick={() => {
-                setTool(t.id as Tool);
-                setSelectedElementId(null);
-              }}
-              title={t.label}
-            >
-              <IconComp className="h-4 w-4" />
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
-                {t.label}
-              </span>
-            </Button>
-          );
-        })}
+      <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
+        <div className="flex items-center gap-1 md:gap-1.5 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 md:p-2 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.5)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
+          {[
+            { id: "select", icon: MousePointer, label: "Select (V)" },
+            { id: "hand", icon: Hand, label: "Pan (H)" },
+            { id: "rect", icon: Square, label: "Rectangle (R)" },
+            { id: "ellipse", icon: Circle, label: "Circle (O)" },
+            { id: "line", icon: Minus, label: "Line (L)" },
+            { id: "arrow", icon: ArrowRight, label: "Arrow (A)" },
+            { id: "pencil", icon: Pencil, label: "Pencil (P)" },
+            { id: "text", icon: Type, label: "Text (T)" },
+            { id: "eraser", icon: Eraser, label: "Eraser (E)" },
+          ].filter((t) => !isReadOnly || t.id === "select" || t.id === "hand").map((t) => {
+            const IconComp = t.icon;
+            const isActive = tool === t.id;
+            return (
+              <Button
+                key={t.id}
+                variant={isActive ? "active" : "ghost"}
+                size="icon"
+                className="relative group transition-all"
+                onClick={() => {
+                  setTool(t.id as Tool);
+                  setSelectedElementId(null);
+                }}
+                title={t.label}
+              >
+                <IconComp className="h-4 w-4" />
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
+                  {t.label}
+                </span>
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Top Left Navigation & Styles Toggle */}
@@ -1354,7 +1386,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       </div>
 
       {/* Zoom Widget - Floating bottom left */}
-      <div className="absolute bottom-6 left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 rounded-lg shadow-sm">
+      <div className="absolute bottom-20 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 rounded-lg shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => adjustZoom(0.8)} className="h-8 w-8">
           <ZoomOut className="h-4 w-4" />
         </Button>

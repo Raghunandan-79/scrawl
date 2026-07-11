@@ -6,6 +6,6 @@ import { joinRoomHadler } from "../handlers/roomHandlers/joinRoomHandler.js";
 const roomRouter: ExpressRouter = Router();
 
 roomRouter.post("/create-room", authMiddleware, createRoomHandler);
-roomRouter.post("/:slug", joinRoomHadler);
+roomRouter.post("/join-room/:slug", joinRoomHadler);
 
 export default roomRouter;

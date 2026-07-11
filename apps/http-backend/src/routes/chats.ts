@@ -4,6 +4,6 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const chatsRouter: ExpressRouter = Router();
 
-chatsRouter.get("/:roomId", authMiddleware, chatsHandler);
+chatsRouter.get("/get-chats/:roomId", authMiddleware, chatsHandler);
 
 export default chatsRouter;

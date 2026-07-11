@@ -3,7 +3,7 @@ import { BACKEND_URL } from "../../config";
 import { ChatRoom } from "../../../components/ChatRoom";
 
 async function getRoomId(slug: string) {
-    const response = await axios.post(`${BACKEND_URL}/api/v1/room/${slug}`);
+    const response = await axios.post(`${BACKEND_URL}/api/v1/room/join-room/${slug}`);
     return response.data.room?.id;
 }
 

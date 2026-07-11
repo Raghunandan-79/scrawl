@@ -28,11 +28,8 @@ function checkUser(token: string): string | null {
 
 wss.on("connection", function connection(ws, request) {
   const origin = request.headers.origin;
-  const ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://scrawl.raghunandan.dev",
-  ];
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+  const ALLOWED_ORIGIN_REGEX = /^(https?:\/\/localhost:3000|https:\/\/.*\.raghunandan\.dev|https:\/\/.*\.onrender\.com)$/;
+  if (origin && !ALLOWED_ORIGIN_REGEX.test(origin)) {
     console.warn(`Connection rejected: unauthorized origin: ${origin}`);
     ws.close();
     return;

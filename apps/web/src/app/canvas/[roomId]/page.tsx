@@ -7,11 +7,14 @@ import { BACKEND_URL } from "../../config";
 import { Canvas } from "@/components/Canvas";
 import { CanvasElement } from "@/components/canvas-types";
 import { Button } from "@repo/ui/button";
+import { useSocket } from "@/app/hooks/useSocket";
 
 export default function CanvasRoomPage() {
   const params = useParams();
   const router = useRouter();
   const pathIdOrSlug = params.roomId as string;
+
+  const { socket, loading: socketLoading, error: socketError } = useSocket();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +149,8 @@ export default function CanvasRoomPage() {
         roomSlug={resolvedRoomSlug}
         initialElements={initialElements}
         isReadOnly={isReadOnly}
+        socketError={socketError}
+        socketLoading={socketLoading}
       />
     </div>
   );

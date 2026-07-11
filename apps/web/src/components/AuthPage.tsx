@@ -77,7 +77,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               S
             </span>
             <span className="font-mono text-xs font-semibold tracking-widest text-[#A19D94]">
-              SCRWAL
+              SCRAWL
             </span>
           </div>
           <h2 className="text-3xl font-extrabold tracking-tight text-[#1E1E1E]">
@@ -104,7 +104,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                   name="name"
                   type="text"
                   required
-                  placeholder="Raghunandan Sharma"
+                  placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -127,7 +127,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               name="username"
               type="text"
               required
-              placeholder="raghunandan"
+              placeholder="johndoe"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />

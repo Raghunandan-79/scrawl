@@ -189,7 +189,7 @@ export default function Home() {
             S
           </span>
           <span className="font-mono text-sm font-extrabold tracking-widest text-[#1E1E1E]">
-            SCRWAL
+            SCRAWL
           </span>
         </div>
 
@@ -310,7 +310,7 @@ export default function Home() {
           {/* Sketch Illustration */}
           <div className="border border-[#E5E0D8] bg-[#FAF8F5] p-8 rounded-2xl aspect-[4/3] flex items-center justify-center relative overflow-hidden shadow-sm">
             <div className="absolute top-4 left-4 font-mono text-[10px] text-[#A19D94] font-bold">
-              SCRWAL.CANVAS
+              SCRAWL.CANVAS
             </div>
             {/* Inline SVG rendering sketch to visually impress the user */}
             <svg
@@ -513,7 +513,7 @@ export default function Home() {
       <footer className="border-t border-[#E5E0D8] bg-[#FAF8F5] py-12 px-6 mt-auto text-center font-sans">
         <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-3">
           <p className="text-xs font-mono font-bold tracking-wider text-[#706B5F] uppercase">
-            SCRWAL
+            SCRAWL
           </p>
           <p className="text-sm font-semibold text-[#1E1E1E]">
             made by{" "}

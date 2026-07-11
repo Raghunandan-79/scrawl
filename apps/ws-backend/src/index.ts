@@ -133,16 +133,8 @@ wss.on("connection", async function connection(ws, request) {
       const roomId = parsedData.roomId;
       const message = parsedData.message;
 
+      // 1. Broadcast immediately to all sockets in the same room for zero latency
       try {
-        await prismaClient.chat.create({
-          data: {
-            roomId: Number(roomId),
-            message: message,
-            userId,
-          },
-        });
-
-        // Broadcast to all sockets in the same room
         const roomSockets = stateManager.getRoomSockets(roomId);
         roomSockets.forEach((s) => {
           if (s.readyState === WebSocket.OPEN) {
@@ -155,9 +147,20 @@ wss.on("connection", async function connection(ws, request) {
             );
           }
         });
-      } catch (err) {
-        console.error("Failed to process drawing/chat event:", err);
+      } catch (broadcastErr) {
+        console.error("Failed to broadcast chat event:", broadcastErr);
       }
+
+      // 2. Persist to database asynchronously in the background
+      prismaClient.chat.create({
+        data: {
+          roomId: Number(roomId),
+          message: message,
+          userId,
+        },
+      }).catch((dbErr) => {
+        console.error("Failed to save drawing/chat event to DB:", dbErr);
+      });
     }
   });
 });

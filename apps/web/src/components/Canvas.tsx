@@ -1172,7 +1172,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-screen overflow-hidden bg-[#FAF8F5] select-none flex flex-col"
+      className="relative w-full h-dvh overflow-hidden bg-[#FAF8F5] select-none flex flex-col"
     >
       {/* Canvas view */}
       <canvas
@@ -1214,7 +1214,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       )}
 
       {/* Toolbar - Floating bottom */}
-      <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
+      <div className="absolute bottom-8 md:bottom-6 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
         <div className="flex items-center gap-1 md:gap-1.5 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 md:p-2 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.5)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
           {[
             { id: "select", icon: MousePointer, label: "Select (V)" },
@@ -1453,7 +1453,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       </div>
 
       {/* Zoom Widget - Floating bottom left */}
-      <div className="absolute bottom-20 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 rounded-lg shadow-sm">
+      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 rounded-lg shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => adjustZoom(0.8)} className="h-8 w-8">
           <ZoomOut className="h-4 w-4" />
         </Button>

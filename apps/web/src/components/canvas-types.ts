@@ -4,6 +4,8 @@ export type Tool =
   | "pencil"
   | "rect"
   | "ellipse"
+  | "triangle"
+  | "rhombus"
   | "line"
   | "arrow"
   | "text"
@@ -16,7 +18,16 @@ export interface Point {
 
 export interface CanvasElement {
   id: string;
-  type: "rect" | "ellipse" | "line" | "arrow" | "pencil" | "text" | "image";
+  type:
+    | "rect"
+    | "ellipse"
+    | "triangle"
+    | "rhombus"
+    | "line"
+    | "arrow"
+    | "pencil"
+    | "text"
+    | "image";
   x: number;
   y: number;
   width: number;

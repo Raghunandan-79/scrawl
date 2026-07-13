@@ -119,7 +119,13 @@ export function renderElement(
 
   // Draw Fill (if active and shape type supports fill)
   const hasFill = element.fillColor !== "transparent";
-  if (hasFill && (element.type === "rect" || element.type === "ellipse")) {
+  if (
+    hasFill &&
+    (element.type === "rect" ||
+      element.type === "ellipse" ||
+      element.type === "triangle" ||
+      element.type === "rhombus")
+  ) {
     ctx.fillStyle = element.fillColor;
     ctx.beginPath();
     if (element.type === "rect") {
@@ -130,6 +136,17 @@ export function renderElement(
       const rx = Math.abs(element.width / 2);
       const ry = Math.abs(element.height / 2);
       ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    } else if (element.type === "triangle") {
+      ctx.moveTo(element.x + element.width / 2, element.y);
+      ctx.lineTo(element.x, element.y + element.height);
+      ctx.lineTo(element.x + element.width, element.y + element.height);
+      ctx.closePath();
+    } else if (element.type === "rhombus") {
+      ctx.moveTo(element.x + element.width / 2, element.y);
+      ctx.lineTo(element.x + element.width, element.y + element.height / 2);
+      ctx.lineTo(element.x + element.width / 2, element.y + element.height);
+      ctx.lineTo(element.x, element.y + element.height / 2);
+      ctx.closePath();
     }
     ctx.fill();
   }
@@ -165,6 +182,56 @@ export function renderElement(
       } else {
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case "triangle": {
+      const tx = element.x + element.width / 2;
+      const ty = element.y;
+      const blx = element.x;
+      const bly = element.y + element.height;
+      const brx = element.x + element.width;
+      const bry = element.y + element.height;
+
+      if (roughMode) {
+        drawWobblyLine(ctx, tx, ty, blx, bly, random);
+        drawWobblyLine(ctx, blx, bly, brx, bry, random);
+        drawWobblyLine(ctx, brx, bry, tx, ty, random);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(blx, bly);
+        ctx.lineTo(brx, bry);
+        ctx.closePath();
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case "rhombus": {
+      const topX = element.x + element.width / 2;
+      const topY = element.y;
+      const rightX = element.x + element.width;
+      const rightY = element.y + element.height / 2;
+      const bottomX = element.x + element.width / 2;
+      const bottomY = element.y + element.height;
+      const leftX = element.x;
+      const leftY = element.y + element.height / 2;
+
+      if (roughMode) {
+        drawWobblyLine(ctx, topX, topY, rightX, rightY, random);
+        drawWobblyLine(ctx, rightX, rightY, bottomX, bottomY, random);
+        drawWobblyLine(ctx, bottomX, bottomY, leftX, leftY, random);
+        drawWobblyLine(ctx, leftX, leftY, topX, topY, random);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(topX, topY);
+        ctx.lineTo(rightX, rightY);
+        ctx.lineTo(bottomX, bottomY);
+        ctx.lineTo(leftX, leftY);
+        ctx.closePath();
         ctx.stroke();
       }
       break;

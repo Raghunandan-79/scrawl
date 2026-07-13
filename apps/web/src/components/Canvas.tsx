@@ -11,6 +11,8 @@ import {
   Hand,
   Square,
   Circle,
+  Triangle,
+  Diamond,
   Minus,
   ArrowRight,
   Pencil,
@@ -110,6 +112,7 @@ export function Canvas({
     x: number;
     y: number;
     text: string;
+    editingElementId?: string;
   } | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -486,7 +489,13 @@ export function Canvas({
     // Iterate from newest to oldest (reverse order)
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
-      if (el.type === "rect" || el.type === "text" || el.type === "image") {
+      if (
+        el.type === "rect" ||
+        el.type === "text" ||
+        el.type === "image" ||
+        el.type === "triangle" ||
+        el.type === "rhombus"
+      ) {
         const xMin = Math.min(el.x, el.x + el.width);
         const xMax = Math.max(el.x, el.x + el.width);
         const yMin = Math.min(el.y, el.y + el.height);
@@ -622,6 +631,7 @@ export function Canvas({
 
     // Render stored elements
     elements.forEach((el) => {
+      if (textInput && textInput.editingElementId === el.id) return;
       renderElement(ctx, el, roughMode, zoom, () => {
         setRedrawTrigger((prev) => prev + 1);
       });
@@ -801,6 +811,12 @@ export function Canvas({
         case "o":
         case "c":
           setTool("ellipse");
+          break;
+        case "i":
+          setTool("triangle");
+          break;
+        case "g":
+          setTool("rhombus");
           break;
         case "l":
           setTool("line");
@@ -1242,6 +1258,31 @@ export function Canvas({
     handleEnd();
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (tool !== "select") return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+
+    const mouseX = (e.clientX - rect.left - pan.x) / zoom;
+    const mouseY = (e.clientY - rect.top - pan.y) / zoom;
+
+    const clickedEl = getElementAtPosition(mouseX, mouseY);
+    if (clickedEl && clickedEl.type === "text") {
+      setTextInput({
+        x: clickedEl.x,
+        y: clickedEl.y,
+        text: clickedEl.text || "",
+        editingElementId: clickedEl.id,
+      });
+      setSelectedElementId(null);
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 50);
+    }
+  };
+
   // Global mouseup listener to catch releases outside the canvas boundaries
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -1373,13 +1414,25 @@ export function Canvas({
 
   // Text tools helper
   const commitTextInput = () => {
-    if (!textInput || !textInput.text.trim()) {
+    if (!textInput) return;
+
+    if (!textInput.text.trim()) {
+      if (textInput.editingElementId) {
+        setElements((prev) => prev.filter((el) => el.id !== textInput.editingElementId));
+        setMyElements((prev) => prev.filter((id) => id !== textInput.editingElementId));
+        broadcastAction({ type: "delete", elementId: textInput.editingElementId });
+      }
       setTextInput(null);
       return;
     }
 
-    const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const fontSize = strokeWidth * 12;
+    const editingElement = textInput.editingElementId
+      ? elements.find((el) => el.id === textInput.editingElementId)
+      : null;
+
+    const currentStrokeWidth = editingElement ? editingElement.strokeWidth : strokeWidth;
+    const currentStrokeColor = editingElement ? editingElement.strokeColor : strokeColor;
+    const fontSize = currentStrokeWidth * 12;
     const lines = textInput.text.split("\n");
 
     // Estimate width & height
@@ -1387,23 +1440,42 @@ export function Canvas({
     const width = longestLineLen * fontSize * 0.6;
     const height = lines.length * fontSize * 1.25;
 
-    const newElement: CanvasElement = {
-      id: newId,
-      type: "text",
-      x: textInput.x,
-      y: textInput.y,
-      width,
-      height,
-      text: textInput.text,
-      strokeColor,
-      fillColor: "transparent",
-      strokeWidth,
-      strokeStyle: "solid",
-    };
+    if (textInput.editingElementId) {
+      // Update existing element
+      setElements((prev) =>
+        prev.map((el) => {
+          if (el.id !== textInput.editingElementId) return el;
+          const updated = {
+            ...el,
+            text: textInput.text,
+            width,
+            height,
+          };
+          broadcastAction({ type: "update", element: updated });
+          return updated;
+        })
+      );
+    } else {
+      // Create new element
+      const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newElement: CanvasElement = {
+        id: newId,
+        type: "text",
+        x: textInput.x,
+        y: textInput.y,
+        width,
+        height,
+        text: textInput.text,
+        strokeColor: currentStrokeColor,
+        fillColor: "transparent",
+        strokeWidth: currentStrokeWidth,
+        strokeStyle: "solid",
+      };
 
-    setElements((prev) => [...prev, newElement]);
-    setMyElements((prev) => [...prev, newElement.id]);
-    broadcastAction({ type: "add", element: newElement });
+      setElements((prev) => [...prev, newElement]);
+      setMyElements((prev) => [...prev, newElement.id]);
+      broadcastAction({ type: "add", element: newElement });
+    }
     setTextInput(null);
   };
 
@@ -1762,54 +1834,62 @@ export function Canvas({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
       />
 
       {/* Floating text edit area */}
-      {textInput && (
-        <div
-          style={{
-            position: "absolute",
-            left: textInput.x * zoom + pan.x,
-            top: textInput.y * zoom + pan.y,
-            transform: "translate(-50%, -50%)",
-            zIndex: 50,
-          }}
-          className="bg-transparent"
-        >
-          <textarea
-            ref={textInputRef}
-            className="bg-transparent border border-[#FAF8F5] outline-none text-[#1E1E1E] font-mono resize-none p-1"
-            wrap="off"
+      {textInput && (() => {
+        const editingElement = textInput.editingElementId
+          ? elements.find((el) => el.id === textInput.editingElementId)
+          : null;
+        const currentTextStrokeWidth = editingElement ? editingElement.strokeWidth : strokeWidth;
+        const currentTextStrokeColor = editingElement ? editingElement.strokeColor : strokeColor;
+        return (
+          <div
             style={{
-              fontSize: `${strokeWidth * 12 * zoom}px`,
-              lineHeight: 1.25,
-              color: strokeColor,
-              width: `${Math.max(
-                250,
-                textInput.text
-                  .split("\n")
-                  .reduce((max, line) => Math.max(max, line.length), 0) *
-                  (strokeWidth * 12 * 0.6) *
-                  zoom +
-                  30,
-              )}px`,
-              height: `${Math.max(
-                100,
-                textInput.text.split("\n").length *
-                  (strokeWidth * 12 * 1.25) *
-                  zoom +
-                  30,
-              )}px`,
+              position: "absolute",
+              left: textInput.x * zoom + pan.x,
+              top: textInput.y * zoom + pan.y,
+              transform: "translate(-50%, -50%)",
+              zIndex: 50,
             }}
-            value={textInput.text}
-            onChange={(e) =>
-              setTextInput({ ...textInput, text: e.target.value })
-            }
-            onBlur={commitTextInput}
-            placeholder="Type drawing text..."
-          />
-        </div>
-      )}
+            className="bg-transparent"
+          >
+            <textarea
+              ref={textInputRef}
+              className="bg-transparent border border-[#FAF8F5] outline-none text-[#1E1E1E] font-mono resize-none p-1"
+              wrap="off"
+              style={{
+                fontSize: `${currentTextStrokeWidth * 12 * zoom}px`,
+                lineHeight: 1.25,
+                color: currentTextStrokeColor,
+                width: `${Math.max(
+                  250,
+                  textInput.text
+                    .split("\n")
+                    .reduce((max, line) => Math.max(max, line.length), 0) *
+                    (currentTextStrokeWidth * 12 * 0.6) *
+                    zoom +
+                    30,
+                )}px`,
+                height: `${Math.max(
+                  100,
+                  textInput.text.split("\n").length *
+                    (currentTextStrokeWidth * 12 * 1.25) *
+                    zoom +
+                    30,
+                )}px`,
+              }}
+              value={textInput.text}
+              onChange={(e) =>
+                setTextInput({ ...textInput, text: e.target.value })
+              }
+              onBlur={commitTextInput}
+              placeholder="Type drawing text..."
+            />
+          </div>
+        );
+      })()}
 
       {/* Toolbar - Floating bottom */}
       <div className="absolute bottom-6 md:bottom-4 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
@@ -1819,6 +1899,8 @@ export function Canvas({
             { id: "hand", icon: Hand, label: "Pan (H)" },
             { id: "rect", icon: Square, label: "Rectangle (R)" },
             { id: "ellipse", icon: Circle, label: "Circle (O)" },
+            { id: "triangle", icon: Triangle, label: "Triangle (I)" },
+            { id: "rhombus", icon: Diamond, label: "Rhombus (G)" },
             { id: "line", icon: Minus, label: "Line (L)" },
             { id: "arrow", icon: ArrowRight, label: "Arrow (A)" },
             { id: "pencil", icon: Pencil, label: "Pencil (P)" },

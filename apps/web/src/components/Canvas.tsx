@@ -54,7 +54,7 @@ export function Canvas({
   const [tool, setTool] = useState<Tool>(isReadOnly ? "hand" : "rect");
 
   // Style Options
-  const [strokeColor, setStrokeColor] = useState("#1E1E1E");
+  const [strokeColor, setStrokeColor] = useState("#000000");
   const [fillColor, setFillColor] = useState("transparent");
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [strokeStyle, setStrokeStyle] = useState<"solid" | "dashed">("solid");
@@ -1811,14 +1811,14 @@ export function Canvas({
             </h4>
             <div className="grid grid-cols-5 gap-2">
               {[
-                "#1E1E1E", // black
-                "#A19D94", // gray
-                "#D95F4D", // terracotta red
-                "#2D9CDB", // blue
-                "#27AE60", // green
-                "#F2994A", // orange
-                "#9B51E0", // purple
-                "#EB5757", // light red
+                "#000000", // black
+                "#808080", // gray
+                "#FF0000", // red
+                "#0000FF", // blue
+                "#00FF00", // green
+                "#FF6600", // orange
+                "#9900FF", // purple
+                "#FF00FF", // pink
               ].map((col) => (
                 <button
                   key={col}
@@ -1845,12 +1845,13 @@ export function Canvas({
             <div className="grid grid-cols-5 gap-2">
               {[
                 "transparent",
-                "#FAF8F5",
-                "#F5C7C1", // soft red
-                "#D6EAF8", // soft blue
-                "#D4EFDF", // soft green
-                "#FDEBD0", // soft orange
-                "#E8DAEF", // soft purple
+                "#FFFFFF", // white
+                "#FF0000", // red
+                "#0000FF", // blue
+                "#00FF00", // green
+                "#FF6600", // orange
+                "#9900FF", // purple
+                "#FF00FF", // pink
               ].map((col) => (
                 <button
                   key={col}

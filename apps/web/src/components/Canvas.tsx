@@ -65,12 +65,29 @@ export function Canvas({
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
   const isCanvasLockedRef = useRef(isCanvasLocked);
+  const [lockedSize, setLockedSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const lockedSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     isCanvasLockedRef.current = isCanvasLocked;
     if (isCanvasLocked) {
       setZoom(1);
       setPan({ x: 0, y: 0 });
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const size = {
+          width: canvas.parentElement?.clientWidth || window.innerWidth,
+          height: canvas.parentElement?.clientHeight || window.innerHeight,
+        };
+        setLockedSize(size);
+        lockedSizeRef.current = size;
+      }
+    } else {
+      setLockedSize(null);
+      lockedSizeRef.current = null;
     }
   }, [isCanvasLocked]);
 
@@ -555,14 +572,43 @@ export function Canvas({
     canvas.style.height = `${displayHeight}px`;
 
     // Clear using full buffer size
-    ctx.fillStyle = "#FAF8F5";
+    ctx.fillStyle = lockedSize ? "#E5E0D8" : "#FAF8F5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Apply dpr scale, zoom & pan
     ctx.save();
     ctx.scale(dpr, dpr);
-    ctx.translate(pan.x, pan.y);
-    ctx.scale(zoom, zoom);
+
+    if (lockedSize) {
+      // Draw centered page
+      const pageW = lockedSize.width;
+      const pageH = lockedSize.height;
+      const pageX = (displayWidth - pageW) / 2;
+      const pageY = (displayHeight - pageH) / 2;
+
+      ctx.fillStyle = "#FAF8F5";
+      ctx.save();
+      ctx.shadowColor = "rgba(0, 0, 0, 0.08)";
+      ctx.shadowBlur = 15;
+      ctx.shadowOffsetY = 4;
+      ctx.fillRect(pageX, pageY, pageW, pageH);
+      ctx.restore();
+
+      ctx.strokeStyle = "#C4C0B5";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(pageX, pageY, pageW, pageH);
+
+      // Translate context relative to the page top-left
+      ctx.translate(pageX, pageY);
+
+      // Clip inside the page
+      ctx.beginPath();
+      ctx.rect(0, 0, pageW, pageH);
+      ctx.clip();
+    } else {
+      ctx.translate(pan.x, pan.y);
+      ctx.scale(zoom, zoom);
+    }
 
     // Render stored elements
     elements.forEach((el) => {
@@ -808,10 +854,22 @@ export function Canvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const mousePos = {
-      x: (clientX - rect.left - pan.x) / zoom,
-      y: (clientY - rect.top - pan.y) / zoom,
-    };
+    let mouseX = clientX - rect.left;
+    let mouseY = clientY - rect.top;
+
+    if (lockedSize) {
+      const pageW = lockedSize.width;
+      const pageH = lockedSize.height;
+      const pageX = (rect.width - pageW) / 2;
+      const pageY = (rect.height - pageH) / 2;
+      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+    } else {
+      mouseX = (mouseX - pan.x) / zoom;
+      mouseY = (mouseY - pan.y) / zoom;
+    }
+
+    const mousePos = { x: mouseX, y: mouseY };
 
     setIsDrawing(true);
     setStartPoint(mousePos);
@@ -896,10 +954,22 @@ export function Canvas({
     const rect = canvas.getBoundingClientRect();
 
     // Calculate world position based on currentPan
-    const mouseWorldPos = {
-      x: (clientX - rect.left - currentPan.x) / zoom,
-      y: (clientY - rect.top - currentPan.y) / zoom,
-    };
+    let mouseX = clientX - rect.left;
+    let mouseY = clientY - rect.top;
+
+    if (lockedSize) {
+      const pageW = lockedSize.width;
+      const pageH = lockedSize.height;
+      const pageX = (rect.width - pageW) / 2;
+      const pageY = (rect.height - pageH) / 2;
+      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+    } else {
+      mouseX = (mouseX - currentPan.x) / zoom;
+      mouseY = (mouseY - currentPan.y) / zoom;
+    }
+
+    const mouseWorldPos = { x: mouseX, y: mouseY };
 
     if (tool === "eraser") {
       const clickedEl = getElementAtPosition(mouseWorldPos.x, mouseWorldPos.y);
@@ -1084,8 +1154,23 @@ export function Canvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const worldX = (clientX - rect.left - pan.x) / zoom;
-    const worldY = (clientY - rect.top - pan.y) / zoom;
+    let mouseX = clientX - rect.left;
+    let mouseY = clientY - rect.top;
+
+    if (lockedSize) {
+      const pageW = lockedSize.width;
+      const pageH = lockedSize.height;
+      const pageX = (rect.width - pageW) / 2;
+      const pageY = (rect.height - pageH) / 2;
+      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+    } else {
+      mouseX = (mouseX - pan.x) / zoom;
+      mouseY = (mouseY - pan.y) / zoom;
+    }
+
+    const worldX = mouseX;
+    const worldY = mouseY;
 
     sendCursorPosition(worldX, worldY);
 
@@ -1152,8 +1237,23 @@ export function Canvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / zoom;
-    const y = (e.clientY - rect.top - pan.y) / zoom;
+    let mouseX = e.clientX - rect.left;
+    let mouseY = e.clientY - rect.top;
+
+    if (lockedSize) {
+      const pageW = lockedSize.width;
+      const pageH = lockedSize.height;
+      const pageX = (rect.width - pageW) / 2;
+      const pageY = (rect.height - pageH) / 2;
+      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+    } else {
+      mouseX = (mouseX - pan.x) / zoom;
+      mouseY = (mouseY - pan.y) / zoom;
+    }
+
+    const x = mouseX;
+    const y = mouseY;
 
     setTool("text");
     setSelectedElementId(null);
@@ -1209,10 +1309,23 @@ export function Canvas({
         if (timeDiff < 300 && dist < 15) {
           if (e.cancelable) e.preventDefault();
           const rect = canvas.getBoundingClientRect();
-          const x =
-            (touch.clientX - rect.left - panRef.current.x) / zoomRef.current;
-          const y =
-            (touch.clientY - rect.top - panRef.current.y) / zoomRef.current;
+          let mouseX = touch.clientX - rect.left;
+          let mouseY = touch.clientY - rect.top;
+
+          if (isCanvasLockedRef.current && lockedSizeRef.current) {
+            const pageW = lockedSizeRef.current.width;
+            const pageH = lockedSizeRef.current.height;
+            const pageX = (rect.width - pageW) / 2;
+            const pageY = (rect.height - pageH) / 2;
+            mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
+            mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+          } else {
+            mouseX = (mouseX - panRef.current.x) / zoomRef.current;
+            mouseY = (mouseY - panRef.current.y) / zoomRef.current;
+          }
+
+          const x = mouseX;
+          const y = mouseY;
 
           setTool("text");
           setSelectedElementId(null);

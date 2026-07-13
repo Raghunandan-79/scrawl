@@ -183,6 +183,32 @@ wss.on("connection", async function connection(ws, request) {
       }
 
       // 2. Persist to database asynchronously in the background
+      try {
+        const action = JSON.parse(message);
+        if (action.type === "delete" && action.elementId) {
+          prismaClient.chat
+            .deleteMany({
+              where: {
+                roomId: Number(roomId),
+                message: {
+                  contains: action.elementId,
+                },
+              },
+            })
+            .then((res) => {
+              console.log(
+                `Deleted ${res.count} DB messages containing elementId: ${action.elementId}`,
+              );
+            })
+            .catch((err) => {
+              console.error("Failed to delete messages from DB:", err);
+            });
+          return;
+        }
+      } catch (e) {
+        // Ignore, not a JSON message or not a delete action
+      }
+
       prismaClient.chat
         .create({
           data: {

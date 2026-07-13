@@ -919,6 +919,7 @@ export function Canvas({
             let y = el.y;
             let width = el.width;
             let height = el.height;
+            let strokeWidth = el.strokeWidth;
 
             const xMin = Math.min(el.x, el.x + el.width);
             const xMax = Math.max(el.x, el.x + el.width);
@@ -948,7 +949,12 @@ export function Canvas({
                 break;
             }
 
-            return { ...el, x, y, width, height };
+            const scaleY = el.height !== 0 ? Math.abs(height / el.height) : 1;
+            if (el.type === "text") {
+              strokeWidth = el.strokeWidth * scaleY;
+            }
+
+            return { ...el, x, y, width, height, strokeWidth };
           }
 
           return el;
@@ -1266,6 +1272,48 @@ export function Canvas({
     setTextInput(null);
   };
 
+  const updateSelectedElementStyle = (updates: Partial<CanvasElement>) => {
+    if (selectedElementId) {
+      setElements((prev) =>
+        prev.map((el) => {
+          if (el.id !== selectedElementId) return el;
+          const updated = { ...el, ...updates };
+
+          if (el.type === "text" && updates.strokeWidth !== undefined) {
+            const lines = el.text ? el.text.split("\n") : [""];
+            const fontSize = updates.strokeWidth * 6;
+            const lineHeight = fontSize * 1.25;
+            const longestLine = lines.reduce(
+              (longest, line) =>
+                line.length > longest.length ? line : longest,
+              "",
+            );
+            const estWidth = longestLine.length * (fontSize * 0.6);
+            const estHeight = lines.length * lineHeight;
+            updated.width = estWidth;
+            updated.height = estHeight;
+          }
+
+          broadcastAction({ type: "update", element: updated });
+          return updated;
+        }),
+      );
+    }
+  };
+
+  // Sync sidebar styling states with the selected element on selection change
+  useEffect(() => {
+    if (selectedElementId) {
+      const el = elements.find((e) => e.id === selectedElementId);
+      if (el) {
+        setStrokeColor(el.strokeColor);
+        setFillColor(el.fillColor);
+        setStrokeWidth(el.strokeWidth);
+        setStrokeStyle(el.strokeStyle);
+      }
+    }
+  }, [selectedElementId]);
+
   // Undo / Redo logic
   const handleUndo = () => {
     if (myElements.length === 0) return;
@@ -1479,7 +1527,10 @@ export function Canvas({
                       : "border-[#E5E0D8]"
                   }`}
                   style={{ backgroundColor: col }}
-                  onClick={() => setStrokeColor(col)}
+                  onClick={() => {
+                    setStrokeColor(col);
+                    updateSelectedElementStyle({ strokeColor: col });
+                  }}
                 />
               ))}
             </div>
@@ -1509,7 +1560,10 @@ export function Canvas({
                   style={{
                     backgroundColor: col === "transparent" ? "white" : col,
                   }}
-                  onClick={() => setFillColor(col)}
+                  onClick={() => {
+                    setFillColor(col);
+                    updateSelectedElementStyle({ fillColor: col });
+                  }}
                 >
                   {col === "transparent" && (
                     <span className="absolute inset-0 flex items-center justify-center text-[#A19D94] text-xs">
@@ -1532,7 +1586,10 @@ export function Canvas({
                   variant={strokeWidth === w ? "active" : "secondary"}
                   size="sm"
                   className="flex-1 text-xs"
-                  onClick={() => setStrokeWidth(w)}
+                  onClick={() => {
+                    setStrokeWidth(w);
+                    updateSelectedElementStyle({ strokeWidth: w });
+                  }}
                 >
                   {["S", "M", "L", "XL"][idx]}
                 </Button>
@@ -1551,7 +1608,10 @@ export function Canvas({
                   variant={strokeStyle === style ? "active" : "secondary"}
                   size="sm"
                   className="flex-1 text-xs capitalize"
-                  onClick={() => setStrokeStyle(style)}
+                  onClick={() => {
+                    setStrokeStyle(style);
+                    updateSelectedElementStyle({ strokeStyle: style });
+                  }}
                 >
                   {style}
                 </Button>

@@ -15,15 +15,6 @@ import {
   Trash,
 } from "lucide-react";
 
-const getUserIdFromToken = (token: string): string | null => {
-  try {
-    const payload = token.split(".")[1];
-    const decoded = JSON.parse(atob(payload));
-    return decoded.userId || null;
-  } catch (e) {
-    return null;
-  }
-};
 
 export default function LandingClient() {
   const router = useRouter();
@@ -100,27 +91,8 @@ export default function LandingClient() {
         return;
       }
 
-      // Check if room already exists by trying to join
-      const joinResponse = await axios.post(
-        `${BACKEND_URL}/api/v1/room/join-room/${slug}`,
-      );
-
-      if (joinResponse.data?.room) {
-        const room = joinResponse.data.room;
-        const currentUserId = getUserIdFromToken(storedToken);
-
-        if (room.adminId === currentUserId) {
-          // Room exists and user is owner -> redirect to slug (Edit mode)
-          router.push(`/canvas/${room.slug}`);
-          setIsModalOpen(false);
-        } else {
-          // Room exists but belongs to someone else -> redirect to numeric ID (Read-only mode)
-          router.push(`/canvas/${room.id}`);
-          setIsModalOpen(false);
-        }
-      } else {
-        // Room doesn't exist, create it
-        const createResponse = await axios.post(
+      try {
+        await axios.post(
           `${BACKEND_URL}/api/v1/room/create-room`,
           { name: slug },
           {
@@ -129,16 +101,15 @@ export default function LandingClient() {
             },
           },
         );
-
-        if (createResponse.data?.roomId) {
-          router.push(`/canvas/${slug}`);
-          setIsModalOpen(false);
-        } else {
-          setError(
-            "Failed to create room. It might already exist or inputs are invalid.",
-          );
+      } catch (err: any) {
+        // If room already exists, ignore 411 and redirect directly
+        if (err.response?.status !== 411) {
+          throw err;
         }
       }
+
+      router.push(`/canvas/${slug}`);
+      setIsModalOpen(false);
     } catch (err: any) {
       console.error(err);
       setError(

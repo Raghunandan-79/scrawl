@@ -125,6 +125,17 @@ export function Canvas({
   const [undoStack, setUndoStack] = useState<CanvasElement[][]>([]);
   const [redoStack, setRedoStack] = useState<CanvasElement[][]>([]);
 
+  // Trigger redraw on async events (e.g. image loads)
+  const [redrawTrigger, setRedrawTrigger] = useState(0);
+
+  const elementsRef = useRef(elements);
+  const handleUndoRef = useRef<() => void>(() => {});
+  const handleRedoRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    elementsRef.current = elements;
+  }, [elements]);
+
   const lastMouseClientPos = useRef<Point>({ x: 0, y: 0 });
 
   // Refs to avoid stale closures in animation loops
@@ -329,6 +340,7 @@ export function Canvas({
   useEffect(() => {
     if (initialElements && initialElements.length > 0) {
       setElements(initialElements);
+      setMyElements(initialElements.map((el) => el.id));
     }
   }, [initialElements]);
 
@@ -465,7 +477,7 @@ export function Canvas({
     // Iterate from newest to oldest (reverse order)
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
-      if (el.type === "rect" || el.type === "text") {
+      if (el.type === "rect" || el.type === "text" || el.type === "image") {
         const xMin = Math.min(el.x, el.x + el.width);
         const xMax = Math.max(el.x, el.x + el.width);
         const yMin = Math.min(el.y, el.y + el.height);
@@ -601,12 +613,16 @@ export function Canvas({
 
     // Render stored elements
     elements.forEach((el) => {
-      renderElement(ctx, el, roughMode);
+      renderElement(ctx, el, roughMode, () => {
+        setRedrawTrigger((prev) => prev + 1);
+      });
     });
 
     // Render active drawing element
     if (activeElement) {
-      renderElement(ctx, activeElement, roughMode);
+      renderElement(ctx, activeElement, roughMode, () => {
+        setRedrawTrigger((prev) => prev + 1);
+      });
     }
 
     // Render selection box
@@ -724,6 +740,7 @@ export function Canvas({
     tool,
     collaboratorCursors,
     canvasSize,
+    redrawTrigger,
   ]);
 
   // Handle infinite scroll wheel and zoom events
@@ -795,20 +812,20 @@ export function Canvas({
         case "z":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            handleUndo();
+            handleUndoRef.current();
           }
           break;
         case "y":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            handleRedo();
+            handleRedoRef.current();
           }
           break;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [myElements, redoStack, elements]);
+  }, []);
 
   // Handle Resize of canvas on screen size change
   useEffect(() => {
@@ -1423,6 +1440,162 @@ export function Canvas({
     }
   }, [selectedElementId]);
 
+  const pasteCanvasElement = (copiedEl: CanvasElement) => {
+    const newId = `${copiedEl.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newElement: CanvasElement = {
+      ...copiedEl,
+      id: newId,
+      x: copiedEl.x + 20,
+      y: copiedEl.y + 20,
+    };
+    if (newElement.points) {
+      newElement.points = newElement.points.map((p) => ({
+        x: p.x + 20,
+        y: p.y + 20,
+      }));
+    }
+
+    setElements((prev) => [...prev, newElement]);
+    setMyElements((prev) => [...prev, newId]);
+    setSelectedElementId(newId);
+    broadcastAction({ type: "add", element: newElement });
+  };
+
+  const compressAndPasteImage = (dataUrl: string) => {
+    const tempImg = new Image();
+    tempImg.src = dataUrl;
+    tempImg.onload = () => {
+      const maxDim = 800;
+      let width = tempImg.width;
+      let height = tempImg.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = (height * maxDim) / width;
+          width = maxDim;
+        } else {
+          width = (width * maxDim) / height;
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(tempImg, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+
+      const canvasEl = canvasRef.current;
+      let worldX = 100;
+      let worldY = 100;
+      if (canvasEl) {
+        const rect = canvasEl.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        worldX = (centerX - panRef.current.x) / zoomRef.current;
+        worldY = (centerY - panRef.current.y) / zoomRef.current;
+      }
+
+      const displayWidth = Math.min(300, width);
+      const displayHeight = displayWidth * (height / width);
+
+      const newId = `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const newElement: CanvasElement = {
+        id: newId,
+        type: "image",
+        x: worldX - displayWidth / 2,
+        y: worldY - displayHeight / 2,
+        width: displayWidth,
+        height: displayHeight,
+        strokeColor: "#000000",
+        fillColor: "transparent",
+        strokeWidth: 1,
+        strokeStyle: "solid",
+        dataUrl: compressedDataUrl,
+      };
+
+      setElements((prev) => [...prev, newElement]);
+      setMyElements((prev) => [...prev, newId]);
+      setSelectedElementId(newId);
+      broadcastAction({ type: "add", element: newElement });
+    };
+  };
+
+  useEffect(() => {
+    const handleCopy = (e: ClipboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      if (selectedElementIdRef.current) {
+        const el = elementsRef.current.find((item) => item.id === selectedElementIdRef.current);
+        if (el) {
+          e.preventDefault();
+          const copyData = JSON.stringify({
+            type: "scrawl-element",
+            element: el,
+          });
+          e.clipboardData?.setData("text/plain", copyData);
+        }
+      }
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const dataUrl = event.target?.result as string;
+                if (dataUrl) {
+                  compressAndPasteImage(dataUrl);
+                }
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+      }
+
+      const text = e.clipboardData?.getData("text");
+      if (text) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.type === "scrawl-element" && parsed.element) {
+            e.preventDefault();
+            pasteCanvasElement(parsed.element);
+          }
+        } catch (err) {
+          // Ignore
+        }
+      }
+    };
+
+    window.addEventListener("copy", handleCopy);
+    window.addEventListener("paste", handlePaste);
+    return () => {
+      window.removeEventListener("copy", handleCopy);
+      window.removeEventListener("paste", handlePaste);
+    };
+  }, []);
+
   // Undo / Redo logic
   const handleUndo = () => {
     if (myElements.length === 0) return;
@@ -1458,6 +1631,11 @@ export function Canvas({
     setMyElements((prev) => [...prev, item.id]);
     broadcastAction({ type: "add", element: item });
   };
+
+  useEffect(() => {
+    handleUndoRef.current = handleUndo;
+    handleRedoRef.current = handleRedo;
+  });
 
   const handleClear = () => {
     if (

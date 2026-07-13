@@ -89,10 +89,13 @@ export function drawWobblyEllipse(
   drawStroke(-0.3);
 }
 
+const imageCache: Record<string, HTMLImageElement> = {};
+
 export function renderElement(
   ctx: CanvasRenderingContext2D,
   element: CanvasElement,
   roughMode: boolean = true,
+  onImageLoaded?: () => void,
 ) {
   const seedString = element.id || `${element.x}-${element.y}`;
   const random = createSeededRandom(seedString);
@@ -253,6 +256,37 @@ export function renderElement(
       lines.forEach((line, idx) => {
         ctx.fillText(line, element.x, element.y + idx * lineHeight);
       });
+      break;
+    }
+
+    case "image": {
+      if (!element.dataUrl) break;
+      let img = imageCache[element.dataUrl];
+      if (!img) {
+        img = new Image();
+        img.src = element.dataUrl;
+        img.onload = () => {
+          imageCache[element.dataUrl!] = img;
+          if (onImageLoaded) {
+            onImageLoaded();
+          }
+        };
+      }
+
+      if (!img || !img.complete) {
+        ctx.save();
+        ctx.strokeStyle = "#C4C0B5";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(element.x, element.y, element.width, element.height);
+        ctx.fillStyle = "#A19D94";
+        ctx.font = "12px sans-serif";
+        ctx.textBaseline = "top";
+        ctx.fillText("Loading...", element.x + 8, element.y + 8);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, element.x, element.y, element.width, element.height);
+      }
       break;
     }
   }

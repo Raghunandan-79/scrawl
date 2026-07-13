@@ -16,7 +16,7 @@ export interface Point {
 
 export interface CanvasElement {
   id: string;
-  type: "rect" | "ellipse" | "line" | "arrow" | "pencil" | "text";
+  type: "rect" | "ellipse" | "line" | "arrow" | "pencil" | "text" | "image";
   x: number;
   y: number;
   width: number;
@@ -27,6 +27,7 @@ export interface CanvasElement {
   fillColor: string;
   strokeWidth: number;
   strokeStyle: "solid" | "dashed";
+  dataUrl?: string;
 }
 
 export type ActionType = "add" | "update" | "delete";

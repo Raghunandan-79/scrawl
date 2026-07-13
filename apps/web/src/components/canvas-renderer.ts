@@ -112,7 +112,7 @@ export function renderElement(
   ctx.lineJoin = "round";
 
   if (element.strokeStyle === "dashed") {
-    ctx.setLineDash([8, 8]);
+    ctx.setLineDash([8 / zoom, 8 / zoom]);
   } else {
     ctx.setLineDash([]);
   }

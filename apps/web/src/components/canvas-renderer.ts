@@ -106,7 +106,7 @@ export function renderElement(
   // Setup styles
   ctx.strokeStyle = element.strokeColor;
   // Ensure stroke width doesn't fall below a visible threshold in screen space when zoomed out
-  const minWidth = 1.2 / zoom;
+  const minWidth = 0.5 / zoom;
   ctx.lineWidth = Math.max(element.strokeWidth, minWidth);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";

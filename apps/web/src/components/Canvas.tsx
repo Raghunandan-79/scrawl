@@ -2092,7 +2092,7 @@ export function Canvas({
       </div>
 
       {/* Zoom Widget - Floating bottom left */}
-      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 rounded-lg shadow-sm">
+      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-lg shadow-sm">
         <Button
           variant="ghost"
           size="icon"
@@ -2100,12 +2100,22 @@ export function Canvas({
           onClick={() => adjustZoom(0.8)}
           className="h-8 w-8"
           disabled={isCanvasLocked}
+          title="Zoom Out"
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <span className="text-xs font-mono font-semibold px-2 w-12 text-center text-[#1E1E1E]">
+        <button
+          className="text-xs font-mono font-semibold px-2 w-12 text-center text-[#1E1E1E] hover:text-[#D95F4D] cursor-pointer"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
+          }}
+          disabled={isCanvasLocked}
+          title="Reset zoom to 100% & center"
+        >
           {Math.round(zoom * 100)}%
-        </span>
+        </button>
         <Button
           variant="ghost"
           size="icon"
@@ -2113,33 +2123,20 @@ export function Canvas({
           onClick={() => adjustZoom(1.2)}
           className="h-8 w-8"
           disabled={isCanvasLocked}
+          title="Zoom In"
         >
           <ZoomIn className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
-          size="sm"
-          className="text-xs px-2 h-8 font-semibold text-[#D95F4D]"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setZoom(1);
-            setPan({ x: 0, y: 0 });
-          }}
-          disabled={isCanvasLocked}
-        >
-          Reset
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-xs px-2 h-8 font-semibold text-[#D95F4D] flex items-center gap-1"
+          size="icon"
+          className="h-8 w-8 transition-colors text-[#706B5F] hover:text-[#D95F4D]"
           onMouseDown={(e) => e.preventDefault()}
           onClick={goToLastDrawnPlace}
           disabled={isCanvasLocked || elements.length === 0}
-          title="Pan to last drawn element"
+          title="Center on last drawn element"
         >
-          <Locate className="h-3.5 w-3.5" />
-          Last Place
+          <Locate className="h-4 w-4" />
         </Button>
         <div className="w-px h-4 bg-[#E5E0D8]" />
         <Button

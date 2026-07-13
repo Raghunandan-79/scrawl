@@ -1809,7 +1809,7 @@ export function Canvas({
 
       {/* Toolbar - Floating bottom */}
       <div className="absolute bottom-6 md:bottom-4 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
-        <div className="flex items-center gap-0.5 md:gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
+        <div className="flex items-center h-10 gap-0.5 md:gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1.5 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
           {[
             { id: "select", icon: MousePointer, label: "Select (V)" },
             { id: "hand", icon: Hand, label: "Pan (H)" },
@@ -1968,7 +1968,7 @@ export function Canvas({
           </div>
 
           <div>
-            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Stroke Width
             </h4>
             <div className="flex gap-2">
@@ -1977,7 +1977,7 @@ export function Canvas({
                   key={w}
                   variant={strokeWidth === w ? "active" : "secondary"}
                   size="sm"
-                  className="flex-1 text-xs"
+                  className="flex-1 text-[11px] h-7.5"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeWidth(w);
@@ -1991,7 +1991,7 @@ export function Canvas({
           </div>
 
           <div>
-            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Stroke Style
             </h4>
             <div className="flex gap-2">
@@ -2000,7 +2000,7 @@ export function Canvas({
                   key={style}
                   variant={strokeStyle === style ? "active" : "secondary"}
                   size="sm"
-                  className="flex-1 text-xs capitalize"
+                  className="flex-1 text-[11px] h-7.5 capitalize"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeStyle(style);
@@ -2014,13 +2014,13 @@ export function Canvas({
           </div>
 
           <div>
-            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Rough wobble Mode
             </h4>
             <Button
               variant={roughMode ? "active" : "secondary"}
               size="sm"
-              className="w-full flex items-center justify-center gap-2 text-xs"
+              className="w-full flex items-center justify-center gap-1.5 text-[11px] h-7.5"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setRoughMode(!roughMode)}
             >
@@ -2098,7 +2098,7 @@ export function Canvas({
         )}
       </div>
 
-      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-lg shadow-sm">
+      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center h-10 gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1.5 rounded-lg shadow-sm">
         <Button
           variant="ghost"
           size="icon"
@@ -2110,18 +2110,9 @@ export function Canvas({
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <button
-          className="text-xs font-mono font-semibold px-2 w-12 text-center text-[#1E1E1E] hover:text-[#D95F4D] cursor-pointer"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setZoom(1);
-            setPan({ x: 0, y: 0 });
-          }}
-          disabled={isCanvasLocked}
-          title="Reset zoom to 100% & center"
-        >
+        <span className="text-xs font-mono font-semibold px-1.5 w-12 text-center text-[#1E1E1E]">
           {Math.round(zoom * 100)}%
-        </button>
+        </span>
         <Button
           variant="ghost"
           size="icon"
@@ -2132,6 +2123,19 @@ export function Canvas({
           title="Zoom In"
         >
           <ZoomIn className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs px-2 h-8 font-semibold text-[#D95F4D]"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
+          }}
+          disabled={isCanvasLocked}
+        >
+          Reset
         </Button>
         <Button
           variant="ghost"

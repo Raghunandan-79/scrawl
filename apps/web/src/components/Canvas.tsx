@@ -926,44 +926,90 @@ export function Canvas({
             const yMin = Math.min(el.y, el.y + el.height);
             const yMax = Math.max(el.y, el.y + el.height);
 
-            switch (resizeHandle) {
-              case "nw":
-                x = mouseWorldPos.x;
-                y = mouseWorldPos.y;
-                width = xMax - mouseWorldPos.x;
-                height = yMax - mouseWorldPos.y;
-                break;
-              case "ne":
-                y = mouseWorldPos.y;
-                width = mouseWorldPos.x - xMin;
-                height = yMax - mouseWorldPos.y;
-                break;
-              case "se":
-                width = mouseWorldPos.x - xMin;
-                height = mouseWorldPos.y - yMin;
-                break;
-              case "sw":
-                x = mouseWorldPos.x;
-                width = xMax - mouseWorldPos.x;
-                height = mouseWorldPos.y - yMin;
-                break;
-            }
-
-            let scale = el.height !== 0 ? Math.abs(height / el.height) : 1;
-            if (scale < 0.05) scale = 0.05;
-
             if (el.type === "text") {
-              strokeWidth = el.strokeWidth * scale;
-              width = el.width * scale;
-              height = el.height * scale;
+              const W = Math.abs(el.width);
+              const H = Math.abs(el.height);
+              if (W > 0 && H > 0) {
+                let vX = 0;
+                let vY = 0;
+                let dx = 0;
+                let dy = 0;
 
-              if (resizeHandle === "nw") {
-                x = xMax - width;
-                y = yMax - height;
-              } else if (resizeHandle === "ne") {
-                y = yMax - height;
-              } else if (resizeHandle === "sw") {
-                x = xMax - width;
+                switch (resizeHandle) {
+                  case "se":
+                    vX = W;
+                    vY = H;
+                    dx = mouseWorldPos.x - xMin;
+                    dy = mouseWorldPos.y - yMin;
+                    break;
+                  case "sw":
+                    vX = -W;
+                    vY = H;
+                    dx = mouseWorldPos.x - xMax;
+                    dy = mouseWorldPos.y - yMin;
+                    break;
+                  case "ne":
+                    vX = W;
+                    vY = -H;
+                    dx = mouseWorldPos.x - xMin;
+                    dy = mouseWorldPos.y - yMax;
+                    break;
+                  case "nw":
+                    vX = -W;
+                    vY = -H;
+                    dx = mouseWorldPos.x - xMax;
+                    dy = mouseWorldPos.y - yMax;
+                    break;
+                }
+
+                let s = (dx * vX + dy * vY) / (W * W + H * H);
+                if (s < 0.05) s = 0.05;
+
+                width = W * s;
+                height = H * s;
+                strokeWidth = el.strokeWidth * s;
+
+                switch (resizeHandle) {
+                  case "se":
+                    x = xMin;
+                    y = yMin;
+                    break;
+                  case "sw":
+                    x = xMax - width;
+                    y = yMin;
+                    break;
+                  case "ne":
+                    x = xMin;
+                    y = yMax - height;
+                    break;
+                  case "nw":
+                    x = xMax - width;
+                    y = yMax - height;
+                    break;
+                }
+              }
+            } else {
+              switch (resizeHandle) {
+                case "nw":
+                  x = mouseWorldPos.x;
+                  y = mouseWorldPos.y;
+                  width = xMax - mouseWorldPos.x;
+                  height = yMax - mouseWorldPos.y;
+                  break;
+                case "ne":
+                  y = mouseWorldPos.y;
+                  width = mouseWorldPos.x - xMin;
+                  height = yMax - mouseWorldPos.y;
+                  break;
+                case "se":
+                  width = mouseWorldPos.x - xMin;
+                  height = mouseWorldPos.y - yMin;
+                  break;
+                case "sw":
+                  x = mouseWorldPos.x;
+                  width = xMax - mouseWorldPos.x;
+                  height = mouseWorldPos.y - yMin;
+                  break;
               }
             }
 

@@ -580,26 +580,17 @@ export function Canvas({
     ctx.scale(dpr, dpr);
 
     if (lockedSize) {
-      // Draw centered page
       const pageW = lockedSize.width;
       const pageH = lockedSize.height;
-      const pageX = (displayWidth - pageW) / 2;
-      const pageY = (displayHeight - pageH) / 2;
 
+      // Draw white sheet starting at (0, 0)
       ctx.fillStyle = "#FAF8F5";
-      ctx.save();
-      ctx.shadowColor = "rgba(0, 0, 0, 0.08)";
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetY = 4;
-      ctx.fillRect(pageX, pageY, pageW, pageH);
-      ctx.restore();
+      ctx.fillRect(0, 0, pageW, pageH);
 
+      // Draw border
       ctx.strokeStyle = "#C4C0B5";
       ctx.lineWidth = 1;
-      ctx.strokeRect(pageX, pageY, pageW, pageH);
-
-      // Translate context relative to the page top-left
-      ctx.translate(pageX, pageY);
+      ctx.strokeRect(0, 0, pageW, pageH);
 
       // Clip inside the page
       ctx.beginPath();
@@ -860,10 +851,8 @@ export function Canvas({
     if (lockedSize) {
       const pageW = lockedSize.width;
       const pageH = lockedSize.height;
-      const pageX = (rect.width - pageW) / 2;
-      const pageY = (rect.height - pageH) / 2;
-      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
-      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+      mouseX = Math.max(0, Math.min(pageW, mouseX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY));
     } else {
       mouseX = (mouseX - pan.x) / zoom;
       mouseY = (mouseY - pan.y) / zoom;
@@ -960,10 +949,8 @@ export function Canvas({
     if (lockedSize) {
       const pageW = lockedSize.width;
       const pageH = lockedSize.height;
-      const pageX = (rect.width - pageW) / 2;
-      const pageY = (rect.height - pageH) / 2;
-      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
-      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+      mouseX = Math.max(0, Math.min(pageW, mouseX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY));
     } else {
       mouseX = (mouseX - currentPan.x) / zoom;
       mouseY = (mouseY - currentPan.y) / zoom;
@@ -1160,10 +1147,8 @@ export function Canvas({
     if (lockedSize) {
       const pageW = lockedSize.width;
       const pageH = lockedSize.height;
-      const pageX = (rect.width - pageW) / 2;
-      const pageY = (rect.height - pageH) / 2;
-      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
-      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+      mouseX = Math.max(0, Math.min(pageW, mouseX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY));
     } else {
       mouseX = (mouseX - pan.x) / zoom;
       mouseY = (mouseY - pan.y) / zoom;
@@ -1243,10 +1228,8 @@ export function Canvas({
     if (lockedSize) {
       const pageW = lockedSize.width;
       const pageH = lockedSize.height;
-      const pageX = (rect.width - pageW) / 2;
-      const pageY = (rect.height - pageH) / 2;
-      mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
-      mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+      mouseX = Math.max(0, Math.min(pageW, mouseX));
+      mouseY = Math.max(0, Math.min(pageH, mouseY));
     } else {
       mouseX = (mouseX - pan.x) / zoom;
       mouseY = (mouseY - pan.y) / zoom;
@@ -1315,10 +1298,8 @@ export function Canvas({
           if (isCanvasLockedRef.current && lockedSizeRef.current) {
             const pageW = lockedSizeRef.current.width;
             const pageH = lockedSizeRef.current.height;
-            const pageX = (rect.width - pageW) / 2;
-            const pageY = (rect.height - pageH) / 2;
-            mouseX = Math.max(0, Math.min(pageW, mouseX - pageX));
-            mouseY = Math.max(0, Math.min(pageH, mouseY - pageY));
+            mouseX = Math.max(0, Math.min(pageW, mouseX));
+            mouseY = Math.max(0, Math.min(pageH, mouseY));
           } else {
             mouseX = (mouseX - panRef.current.x) / zoomRef.current;
             mouseY = (mouseY - panRef.current.y) / zoomRef.current;

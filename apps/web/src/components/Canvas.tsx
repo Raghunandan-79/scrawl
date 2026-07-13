@@ -1809,7 +1809,7 @@ export function Canvas({
 
       {/* Toolbar - Floating bottom */}
       <div className="absolute bottom-6 md:bottom-4 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
-        <div className="flex items-center h-10 gap-0.5 md:gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1.5 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
+        <div className="flex items-center h-8.5 gap-0.5 md:gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
           {[
             { id: "select", icon: MousePointer, label: "Select (V)" },
             { id: "hand", icon: Hand, label: "Pan (H)" },
@@ -1830,7 +1830,7 @@ export function Canvas({
                   key={t.id}
                   variant={isActive ? "active" : "ghost"}
                   size="icon"
-                  className="relative group transition-all h-8 w-8"
+                  className="relative group transition-all !h-7 !w-7"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setTool(t.id as Tool);
@@ -1838,7 +1838,7 @@ export function Canvas({
                   }}
                   title={t.label}
                 >
-                  <IconComp className="h-4 w-4" />
+                  <IconComp className="h-[14px] w-[14px]" />
                   <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
                     {t.label}
                   </span>
@@ -1854,9 +1854,9 @@ export function Canvas({
           variant="secondary"
           size="sm"
           onClick={() => router.push("/")}
-          className="flex items-center gap-1 font-mono text-[11px] h-8 bg-white"
+          className="flex items-center gap-1 font-mono text-[10px] h-7 px-2 shadow-sm bg-white"
         >
-          <Home className="h-4 w-4" />
+          <Home className="h-[14px] w-[14px]" />
           <span className="hidden sm:inline">HOME</span>
         </Button>
 
@@ -1865,9 +1865,9 @@ export function Canvas({
             variant={showMobileStyles ? "active" : "secondary"}
             size="sm"
             onClick={() => setShowMobileStyles(!showMobileStyles)}
-            className="md:hidden flex items-center gap-1 font-mono text-[11px] h-8 bg-white"
+            className="md:hidden flex items-center gap-1 font-mono text-[10px] h-7 px-2 bg-white"
           >
-            <Sparkles className="h-4 w-4 text-[#D95F4D]" />
+            <Sparkles className="h-[14px] w-[14px] text-[#D95F4D]" />
             Styles
           </Button>
         )}
@@ -1883,7 +1883,7 @@ export function Canvas({
       {/* Styles sidebar - Floating left */}
       {!isReadOnly && (
         <div
-          className={`absolute top-20 left-6 z-10 flex flex-col gap-4 bg-[#FAF8F5] border border-[#E5E0D8] px-3.5 py-4 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] w-48 transition-all ${
+          className={`absolute top-20 left-6 z-10 flex flex-col gap-3 bg-[#FAF8F5] border border-[#E5E0D8] px-2.5 py-3 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] w-40 transition-all ${
             showMobileStyles ? "flex" : "hidden md:flex"
           }`}
         >
@@ -1891,7 +1891,7 @@ export function Canvas({
             <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Stroke Color
             </h4>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-5 gap-1">
               {[
                 "#000000", // black
                 "#808080", // gray
@@ -1904,7 +1904,7 @@ export function Canvas({
               ].map((col) => (
                 <button
                   key={col}
-                  className={`w-7 h-7 rounded-md border transition-all ${
+                  className={`w-6 h-6 rounded-md border transition-all ${
                     strokeColor === col
                       ? "ring-2 ring-[#D95F4D] scale-110"
                       : "border-[#E5E0D8]"
@@ -1927,7 +1927,7 @@ export function Canvas({
             <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Fill Color
             </h4>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-5 gap-1">
               {[
                 "transparent",
                 "#FFFFFF", // white
@@ -1940,7 +1940,7 @@ export function Canvas({
               ].map((col) => (
                 <button
                   key={col}
-                  className={`w-7 h-7 rounded-md border relative transition-all ${
+                  className={`w-6 h-6 rounded-md border relative transition-all ${
                     fillColor === col
                       ? "ring-2 ring-[#D95F4D] scale-110"
                       : "border-[#E5E0D8]"
@@ -1971,13 +1971,13 @@ export function Canvas({
             <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Stroke Width
             </h4>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {[1, 2, 4, 6].map((w, idx) => (
                 <Button
                   key={w}
                   variant={strokeWidth === w ? "active" : "secondary"}
                   size="sm"
-                  className="flex-1 text-[11px] h-7.5"
+                  className="flex-1 text-[10px] h-6.5"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeWidth(w);
@@ -1994,13 +1994,13 @@ export function Canvas({
             <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-2">
               Stroke Style
             </h4>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {(["solid", "dashed"] as const).map((style) => (
                 <Button
                   key={style}
                   variant={strokeStyle === style ? "active" : "secondary"}
                   size="sm"
-                  className="flex-1 text-[11px] h-7.5 capitalize"
+                  className="flex-1 text-[10px] h-6.5 capitalize"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeStyle(style);
@@ -2020,7 +2020,7 @@ export function Canvas({
             <Button
               variant={roughMode ? "active" : "secondary"}
               size="sm"
-              className="w-full flex items-center justify-center gap-1.5 text-[11px] h-7.5"
+              className="w-full flex items-center justify-center gap-1 text-[10px] h-6.5"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setRoughMode(!roughMode)}
             >
@@ -2032,40 +2032,40 @@ export function Canvas({
       )}
 
       {/* Control Actions - Floating right top */}
-      <div className="absolute top-6 right-6 z-10 flex gap-2">
+      <div className="absolute top-6 right-6 z-10 flex gap-1">
         {!isReadOnly && (
           <>
             <Button
               variant="secondary"
               size="icon"
-              className="h-8 w-8 shadow-sm bg-white"
+              className="!h-7 !w-7 shadow-sm bg-white"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleUndo}
               disabled={myElements.length === 0}
               title="Undo last action (Ctrl+Z)"
             >
-              <Undo2 className="h-4 w-4" />
+              <Undo2 className="h-[14px] w-[14px]" />
             </Button>
             <Button
               variant="secondary"
               size="icon"
-              className="h-8 w-8 shadow-sm bg-white"
+              className="!h-7 !w-7 shadow-sm bg-white"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleRedo}
               disabled={redoStack.length === 0}
               title="Redo action (Ctrl+Y)"
             >
-              <Redo2 className="h-4 w-4" />
+              <Redo2 className="h-[14px] w-[14px]" />
             </Button>
             <Button
               variant="secondary"
               size="icon"
-              className="h-8 w-8 shadow-sm bg-white"
+              className="!h-7 !w-7 shadow-sm bg-white"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleClear}
               title="Clear canvas"
             >
-              <Trash2 className="h-4 w-4 text-[#D95F4D]" />
+              <Trash2 className="h-[14px] w-[14px] text-[#D95F4D]" />
             </Button>
           </>
         )}
@@ -2073,12 +2073,12 @@ export function Canvas({
           <Button
             variant="secondary"
             size="icon"
-            className="h-8 w-8 shadow-sm bg-white"
+            className="!h-7 !w-7 shadow-sm bg-white"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleExport}
             title="Export as PNG image"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-[14px] w-[14px]" />
           </Button>
         )}
         {!isReadOnly && roomSlug && roomId !== "guest" && (
@@ -2088,9 +2088,9 @@ export function Canvas({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setIsShareModalOpen(true)}
             title="Share canvas workspace"
-            className="flex items-center gap-1 h-8 font-mono text-[11px] font-bold bg-white"
+            className="flex items-center gap-1 h-7 font-mono text-[10px] font-bold bg-white px-2"
           >
-            <Share2 className="h-4 w-4 text-[#D95F4D]" />
+            <Share2 className="h-[14px] w-[14px] text-[#D95F4D]" />
             <span className="hidden sm:inline">
               SHARE
             </span>
@@ -2098,19 +2098,19 @@ export function Canvas({
         )}
       </div>
 
-      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center h-10 gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1.5 rounded-lg shadow-sm">
+      <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center h-8.5 gap-0.5 bg-[#FAF8F5] border border-[#E5E0D8] px-1 rounded-lg shadow-sm">
         <Button
           variant="ghost"
           size="icon"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => adjustZoom(0.8)}
-          className="h-8 w-8"
+          className="!h-7 !w-7"
           disabled={isCanvasLocked}
           title="Zoom Out"
         >
-          <ZoomOut className="h-4 w-4" />
+          <ZoomOut className="h-[14px] w-[14px]" />
         </Button>
-        <span className="text-xs font-mono font-semibold px-1.5 w-12 text-center text-[#1E1E1E]">
+        <span className="text-[10px] font-mono font-semibold px-0.5 w-10 text-center text-[#1E1E1E]">
           {Math.round(zoom * 100)}%
         </span>
         <Button
@@ -2118,16 +2118,16 @@ export function Canvas({
           size="icon"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => adjustZoom(1.2)}
-          className="h-8 w-8"
+          className="!h-7 !w-7"
           disabled={isCanvasLocked}
           title="Zoom In"
         >
-          <ZoomIn className="h-4 w-4" />
+          <ZoomIn className="h-[14px] w-[14px]" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          className="text-xs px-2 h-8 font-semibold text-[#D95F4D]"
+          className="text-[10px] px-1.5 h-7 font-semibold text-[#D95F4D]"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             setZoom(1);
@@ -2140,21 +2140,21 @@ export function Canvas({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 transition-colors text-[#706B5F] hover:text-[#D95F4D]"
+          className="!h-7 !w-7 transition-colors text-[#706B5F] hover:text-[#D95F4D]"
           onMouseDown={(e) => e.preventDefault()}
           onClick={goToLastDrawnPlace}
           disabled={isCanvasLocked || elements.length === 0}
           title="Center on last drawn element"
         >
-          <Locate className="h-4 w-4" />
+          <Locate className="h-[14px] w-[14px]" />
         </Button>
-        <div className="w-px h-4 bg-[#E5E0D8]" />
+        <div className="w-px h-3 bg-[#E5E0D8]" />
         <Button
           variant="ghost"
           size="icon"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => setIsCanvasLocked(!isCanvasLocked)}
-          className={`h-8 w-8 transition-colors ${
+          className={`!h-7 !w-7 transition-colors ${
             isCanvasLocked ? "text-[#D95F4D]" : "text-[#706B5F]"
           }`}
           title={
@@ -2162,9 +2162,9 @@ export function Canvas({
           }
         >
           {isCanvasLocked ? (
-            <Lock className="h-4 w-4" />
+            <Lock className="h-[14px] w-[14px]" />
           ) : (
-            <Unlock className="h-4 w-4" />
+            <Unlock className="h-[14px] w-[14px]" />
           )}
         </Button>
       </div>

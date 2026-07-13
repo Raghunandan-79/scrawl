@@ -243,7 +243,7 @@ export function renderElement(
       if (!element.text) return;
       // Use clean fonts (serif/sans/mono) depending on style
       const sizeStr = `${Math.max(12, element.strokeWidth * 12)}px`;
-      ctx.font = `500 ${sizeStr} Geist Mono, var(--font-geist-mono), monospace`;
+      ctx.font = `500 ${sizeStr} "Geist Mono", ui-monospace, monospace`;
       ctx.fillStyle = element.strokeColor;
       ctx.textBaseline = "top";
 

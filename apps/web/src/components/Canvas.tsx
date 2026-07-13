@@ -949,9 +949,22 @@ export function Canvas({
                 break;
             }
 
-            const scaleY = el.height !== 0 ? Math.abs(height / el.height) : 1;
+            let scale = el.height !== 0 ? Math.abs(height / el.height) : 1;
+            if (scale < 0.05) scale = 0.05;
+
             if (el.type === "text") {
-              strokeWidth = el.strokeWidth * scaleY;
+              strokeWidth = el.strokeWidth * scale;
+              width = el.width * scale;
+              height = el.height * scale;
+
+              if (resizeHandle === "nw") {
+                x = xMax - width;
+                y = yMax - height;
+              } else if (resizeHandle === "ne") {
+                y = yMax - height;
+              } else if (resizeHandle === "sw") {
+                x = xMax - width;
+              }
             }
 
             return { ...el, x, y, width, height, strokeWidth };

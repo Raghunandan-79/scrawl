@@ -169,17 +169,17 @@ export default function LandingClient() {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1E1E1E] flex flex-col font-sans relative">
       {/* Navigation */}
-      <header className="border-b border-[#E5E0D8] px-6 py-4 flex items-center justify-between max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-7 bg-[#1E1E1E] rounded-md flex items-center justify-center text-[#FAF8F5] font-mono text-sm font-extrabold select-none">
+      <header className="border-b border-[#E5E0D8] px-6 py-2.5 flex items-center justify-between max-w-7xl mx-auto w-full">
+        <div className="flex items-center gap-2">
+          <span className="h-6 w-6 bg-[#1E1E1E] rounded-md flex items-center justify-center text-[#FAF8F5] font-mono text-xs font-extrabold select-none">
             S
           </span>
-          <span className="font-mono text-sm font-extrabold tracking-widest text-[#1E1E1E]">
+          <span className="font-mono text-xs font-extrabold tracking-widest text-[#1E1E1E]">
             SCRAWL
           </span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-8 text-[11px] font-mono font-bold tracking-widest text-[#706B5F]">
+        <nav className="hidden md:flex items-center gap-6 text-[10px] font-mono font-bold tracking-wider text-[#706B5F]">
           <a
             href="#features"
             className="hover:text-[#1E1E1E] transition-colors"
@@ -201,7 +201,7 @@ export default function LandingClient() {
                 variant="secondary"
                 size="sm"
                 onClick={() => setIsModalOpen(true)}
-                className="font-mono text-xs font-bold tracking-wider"
+                className="font-mono text-[10px] font-bold tracking-wider py-1.5 px-3"
               >
                 MY PAGES
               </Button>
@@ -210,9 +210,9 @@ export default function LandingClient() {
                 size="icon"
                 onClick={handleLogout}
                 title="Log out"
-                className="text-[#706B5F] hover:text-[#D95F4D]"
+                className="text-[#706B5F] hover:text-[#D95F4D] h-7 w-7"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>
           ) : (
@@ -221,7 +221,7 @@ export default function LandingClient() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/signin")}
-                className="font-mono text-xs font-bold tracking-wider"
+                className="font-mono text-[10px] font-bold tracking-wider py-1.5 px-3"
               >
                 SIGN IN
               </Button>
@@ -229,7 +229,7 @@ export default function LandingClient() {
                 variant="primary"
                 size="sm"
                 onClick={() => router.push("/signup")}
-                className="font-mono text-xs font-bold tracking-wider"
+                className="font-mono text-[10px] font-bold tracking-wider py-1.5 px-3"
               >
                 GET STARTED
               </Button>
@@ -239,55 +239,55 @@ export default function LandingClient() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 py-16 md:py-24 max-w-4xl mx-auto">
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-8 max-w-3xl">
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 py-10 md:py-16 max-w-3xl mx-auto">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.1] mb-6 max-w-2xl">
           A raw, digital canvas for the messy middle of the creative process.
         </h1>
-        <p className="text-lg md:text-xl text-[#706B5F] max-w-2xl mb-12">
+        <p className="text-sm md:text-base text-[#706B5F] max-w-xl mb-8">
           No grids to snap to. Just you, your collaborators, and your raw ideas.
         </p>
 
         {token ? (
-          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
             <Button
               variant="danger"
-              size="lg"
+              size="sm"
               onClick={handleGetStartedRandom}
               isLoading={loading}
-              className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase flex items-center gap-2"
+              className="font-mono font-bold tracking-wider py-2 px-5 text-xs uppercase flex items-center gap-1.5"
             >
-              Get Started (Random Canvas) <Plus className="h-4 w-4" />
+              Get Started (Random Canvas) <Plus className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="secondary"
-              size="lg"
+              size="sm"
               onClick={() => setIsModalOpen(true)}
-              className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase"
+              className="font-mono font-bold tracking-wider py-2 px-5 text-xs uppercase"
             >
               Open Custom Workspace
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
               <Button
                 variant="primary"
-                size="lg"
+                size="sm"
                 onClick={() => router.push("/signup")}
-                className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase"
+                className="font-mono font-bold tracking-wider py-2 px-5 text-xs uppercase"
               >
                 Get Started
               </Button>
               <Button
                 variant="secondary"
-                size="lg"
+                size="sm"
                 onClick={() => router.push("/canvas/guest")}
-                className="font-mono font-bold tracking-wider py-4 px-8 text-sm uppercase bg-white border border-[#E5E0D8]"
+                className="font-mono font-bold tracking-wider py-2 px-5 text-xs uppercase bg-white border border-[#E5E0D8]"
               >
                 Try as Guest
               </Button>
             </div>
-            <span className="font-mono text-[10px] tracking-widest text-[#A19D94] uppercase">
+            <span className="font-mono text-[9px] tracking-widest text-[#A19D94] uppercase">
               Free local workspace • One canvas per device
             </span>
           </div>
@@ -297,12 +297,12 @@ export default function LandingClient() {
       {/* Feature Showcase Grid Section */}
       <section
         id="features"
-        className="border-t border-[#E5E0D8] bg-white py-20 px-6"
+        className="border-t border-[#E5E0D8] bg-white py-12 px-6"
       >
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Sketch Illustration */}
-          <div className="border border-[#E5E0D8] bg-[#FAF8F5] p-8 rounded-2xl aspect-[4/3] flex items-center justify-center relative overflow-hidden shadow-sm">
-            <div className="absolute top-4 left-4 font-mono text-[10px] text-[#A19D94] font-bold">
+          <div className="border border-[#E5E0D8] bg-[#FAF8F5] p-6 rounded-2xl aspect-[4/3] max-w-md w-full mx-auto flex items-center justify-center relative overflow-hidden shadow-sm">
+            <div className="absolute top-4 left-4 font-mono text-[9px] text-[#A19D94] font-bold">
               SCRAWL.CANVAS
             </div>
             {/* Inline SVG rendering sketch to visually impress the user */}
@@ -345,26 +345,26 @@ export default function LandingClient() {
           </div>
 
           {/* Details */}
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-6">
             <div>
-              <span className="font-mono text-xs text-[#D95F4D] font-bold tracking-wider block mb-2">
+              <span className="font-mono text-[10px] text-[#D95F4D] font-bold tracking-wider block mb-1">
                 01 / INTUITIVE
               </span>
-              <h3 className="text-2xl font-bold mb-3">Zero friction input</h3>
-              <p className="text-[#706B5F] leading-relaxed">
+              <h3 className="text-xl font-bold mb-2">Zero friction input</h3>
+              <p className="text-sm text-[#706B5F] leading-relaxed">
                 Modeled after the friction of graphite on heavy-weight paper.
                 Every stroke feels deliberate, not digital. Sketch ideas
                 instantly with collaborators.
               </p>
             </div>
             <div>
-              <span className="font-mono text-xs text-[#D95F4D] font-bold tracking-wider block mb-2">
+              <span className="font-mono text-[10px] text-[#D95F4D] font-bold tracking-wider block mb-1">
                 02 / INFINITE
               </span>
-              <h3 className="text-2xl font-bold mb-3">
+              <h3 className="text-xl font-bold mb-2">
                 Space for every tangent
               </h3>
-              <p className="text-[#706B5F] leading-relaxed">
+              <p className="text-sm text-[#706B5F] leading-relaxed">
                 The canvas expands with your thought process. Zoom in for
                 details, pan out for the big picture, and draw connections
                 across massive visual planes.
@@ -375,47 +375,47 @@ export default function LandingClient() {
       </section>
 
       {/* Visual Workspace Features */}
-      <section className="bg-[#FAF8F5] py-20 border-t border-[#E5E0D8] px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="border border-[#E5E0D8] bg-white p-8 rounded-2xl shadow-sm flex flex-col justify-between min-h-[220px]">
+      <section className="bg-[#FAF8F5] py-12 border-t border-[#E5E0D8] px-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="border border-[#E5E0D8] bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between min-h-[170px]">
             <div>
-              <div className="h-10 w-10 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center mb-6">
-                <Sparkles className="h-5 w-5 text-[#D95F4D]" />
+              <div className="h-8 w-8 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center mb-4">
+                <Sparkles className="h-4 w-4 text-[#D95F4D]" />
               </div>
-              <h4 className="font-mono text-xs font-bold tracking-wider text-[#1E1E1E] uppercase mb-3">
+              <h4 className="font-mono text-[10px] font-bold tracking-wider text-[#1E1E1E] uppercase mb-2">
                 Rough Mode
               </h4>
-              <p className="text-sm text-[#706B5F] leading-relaxed">
+              <p className="text-xs text-[#706B5F] leading-relaxed">
                 Perfect circles are boring. Scrawl preserves the human wobble
                 that makes your sketches feel alive.
               </p>
             </div>
           </div>
 
-          <div className="border border-[#E5E0D8] bg-white p-8 rounded-2xl shadow-sm flex flex-col justify-between min-h-[220px]">
+          <div className="border border-[#E5E0D8] bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between min-h-[170px]">
             <div>
-              <div className="h-10 w-10 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center mb-6">
-                <Download className="h-5 w-5 text-[#D95F4D]" />
+              <div className="h-8 w-8 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center mb-4">
+                <Download className="h-4 w-4 text-[#D95F4D]" />
               </div>
-              <h4 className="font-mono text-xs font-bold tracking-wider text-[#1E1E1E] uppercase mb-3">
+              <h4 className="font-mono text-[10px] font-bold tracking-wider text-[#1E1E1E] uppercase mb-2">
                 Quick Export
               </h4>
-              <p className="text-sm text-[#706B5F] leading-relaxed">
+              <p className="text-xs text-[#706B5F] leading-relaxed">
                 Take your messy ideas into polished tools. SVG and PNG exports
                 that look like they were scanned from a notebook.
               </p>
             </div>
           </div>
 
-          <div className="border border-[#E5E0D8] bg-white p-8 rounded-2xl shadow-sm flex flex-col justify-between min-h-[220px]">
+          <div className="border border-[#E5E0D8] bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between min-h-[170px]">
             <div>
-              <div className="h-10 w-10 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center mb-6">
-                <Compass className="h-5 w-5 text-[#D95F4D]" />
+              <div className="h-8 w-8 rounded-full bg-[#FAF8F5] border border-[#E5E0D8] flex items-center justify-center mb-4">
+                <Compass className="h-4 w-4 text-[#D95F4D]" />
               </div>
-              <h4 className="font-mono text-xs font-bold tracking-wider text-[#1E1E1E] uppercase mb-3">
+              <h4 className="font-mono text-[10px] font-bold tracking-wider text-[#1E1E1E] uppercase mb-2">
                 Collaborative
               </h4>
-              <p className="text-sm text-[#706B5F] leading-relaxed">
+              <p className="text-xs text-[#706B5F] leading-relaxed">
                 Share a workspace link and design together in real-time. Minimal
                 UI overlay for maximum focus.
               </p>
@@ -427,9 +427,9 @@ export default function LandingClient() {
       {/* Manifesto Call-to-action */}
       <section
         id="manifesto"
-        className="bg-[#FAF8F5] border-t border-[#E5E0D8] py-24 text-center px-6"
+        className="bg-[#FAF8F5] border-t border-[#E5E0D8] py-16 text-center px-6"
       >
-        <h2 className="text-3xl md:text-5xl font-extrabold mb-12">
+        <h2 className="text-2xl md:text-4xl font-extrabold mb-8">
           Your best work doesn&apos;t start in a document.
         </h2>
         <button
@@ -440,7 +440,7 @@ export default function LandingClient() {
               router.push("/signup");
             }
           }}
-          className="text-lg font-mono font-bold uppercase tracking-wider text-[#D95F4D] border-b-2 border-[#D95F4D] pb-1 hover:text-[#1E1E1E] hover:border-[#1E1E1E] transition-all hover:cursor-pointer"
+          className="text-sm font-mono font-bold uppercase tracking-wider text-[#D95F4D] border-b-2 border-[#D95F4D] pb-1 hover:text-[#1E1E1E] hover:border-[#1E1E1E] transition-all hover:cursor-pointer"
         >
           Start Scrawlling
         </button>

@@ -1831,6 +1831,7 @@ export function Canvas({
                   variant={isActive ? "active" : "ghost"}
                   size="icon"
                   className="relative group transition-all"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setTool(t.id as Tool);
                     setSelectedElementId(null);
@@ -1911,6 +1912,9 @@ export function Canvas({
                   onClick={() => {
                     setStrokeColor(col);
                     updateSelectedElementStyle({ strokeColor: col });
+                    if (tool === "eraser") {
+                      setTool("pencil");
+                    }
                   }}
                 />
               ))}
@@ -1946,6 +1950,9 @@ export function Canvas({
                   onClick={() => {
                     setFillColor(col);
                     updateSelectedElementStyle({ fillColor: col });
+                    if (tool === "eraser") {
+                      setTool("pencil");
+                    }
                   }}
                 >
                   {col === "transparent" && (
@@ -2029,6 +2036,7 @@ export function Canvas({
             <Button
               variant="secondary"
               size="icon"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={handleUndo}
               disabled={myElements.length === 0}
               title="Undo last action (Ctrl+Z)"
@@ -2038,6 +2046,7 @@ export function Canvas({
             <Button
               variant="secondary"
               size="icon"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={handleRedo}
               disabled={redoStack.length === 0}
               title="Redo action (Ctrl+Y)"
@@ -2047,6 +2056,7 @@ export function Canvas({
             <Button
               variant="secondary"
               size="icon"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={handleClear}
               title="Clear canvas"
             >
@@ -2058,6 +2068,7 @@ export function Canvas({
           <Button
             variant="secondary"
             size="icon"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleExport}
             title="Export as PNG image"
           >
@@ -2067,6 +2078,7 @@ export function Canvas({
         {!isReadOnly && roomSlug && roomId !== "guest" && (
           <Button
             variant="secondary"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setIsShareModalOpen(true)}
             title="Share canvas workspace"
             className="flex items-center gap-1.5"
@@ -2084,6 +2096,7 @@ export function Canvas({
         <Button
           variant="ghost"
           size="icon"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => adjustZoom(0.8)}
           className="h-8 w-8"
           disabled={isCanvasLocked}
@@ -2096,6 +2109,7 @@ export function Canvas({
         <Button
           variant="ghost"
           size="icon"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => adjustZoom(1.2)}
           className="h-8 w-8"
           disabled={isCanvasLocked}
@@ -2106,6 +2120,7 @@ export function Canvas({
           variant="ghost"
           size="sm"
           className="text-xs px-2 h-8 font-semibold text-[#D95F4D]"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             setZoom(1);
             setPan({ x: 0, y: 0 });
@@ -2118,6 +2133,7 @@ export function Canvas({
           variant="ghost"
           size="sm"
           className="text-xs px-2 h-8 font-semibold text-[#D95F4D] flex items-center gap-1"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={goToLastDrawnPlace}
           disabled={isCanvasLocked || elements.length === 0}
           title="Pan to last drawn element"
@@ -2129,6 +2145,7 @@ export function Canvas({
         <Button
           variant="ghost"
           size="icon"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => setIsCanvasLocked(!isCanvasLocked)}
           className={`h-8 w-8 transition-colors ${
             isCanvasLocked ? "text-[#D95F4D]" : "text-[#706B5F]"

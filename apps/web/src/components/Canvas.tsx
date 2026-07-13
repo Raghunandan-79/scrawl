@@ -135,6 +135,7 @@ export function Canvas({
   const elementsRef = useRef(elements);
   const handleUndoRef = useRef<() => void>(() => {});
   const handleRedoRef = useRef<() => void>(() => {});
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
     elementsRef.current = elements;
@@ -882,6 +883,42 @@ export function Canvas({
       return;
     }
 
+    if (tool === "select") {
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300; // ms
+      const DISTANCE_THRESHOLD = 15; // px
+
+      if (
+        lastTapRef.current &&
+        now - lastTapRef.current.time < DOUBLE_TAP_DELAY &&
+        Math.hypot(clientX - lastTapRef.current.x, clientY - lastTapRef.current.y) < DISTANCE_THRESHOLD
+      ) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          const mouseX = (clientX - rect.left - pan.x) / zoom;
+          const mouseY = (clientY - rect.top - pan.y) / zoom;
+
+          const clickedEl = getElementAtPosition(mouseX, mouseY);
+          if (clickedEl && clickedEl.type === "text") {
+            setTextInput({
+              x: clickedEl.x,
+              y: clickedEl.y,
+              text: clickedEl.text || "",
+              editingElementId: clickedEl.id,
+            });
+            setSelectedElementId(null);
+            setIsDrawing(false);
+            setTimeout(() => {
+              textInputRef.current?.focus();
+            }, 50);
+            lastTapRef.current = null;
+            return;
+          }
+        }
+      }
+      lastTapRef.current = { time: now, x: clientX, y: clientY };
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -1258,30 +1295,6 @@ export function Canvas({
     handleEnd();
   };
 
-  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (tool !== "select") return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-
-    const mouseX = (e.clientX - rect.left - pan.x) / zoom;
-    const mouseY = (e.clientY - rect.top - pan.y) / zoom;
-
-    const clickedEl = getElementAtPosition(mouseX, mouseY);
-    if (clickedEl && clickedEl.type === "text") {
-      setTextInput({
-        x: clickedEl.x,
-        y: clickedEl.y,
-        text: clickedEl.text || "",
-        editingElementId: clickedEl.id,
-      });
-      setSelectedElementId(null);
-      setTimeout(() => {
-        textInputRef.current?.focus();
-      }, 50);
-    }
-  };
 
   // Global mouseup listener to catch releases outside the canvas boundaries
   useEffect(() => {
@@ -1834,7 +1847,6 @@ export function Canvas({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onDoubleClick={handleDoubleClick}
       />
 
       {/* Floating text edit area */}

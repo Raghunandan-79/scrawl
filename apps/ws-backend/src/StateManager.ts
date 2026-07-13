@@ -8,10 +8,10 @@ interface UserConnection {
 
 export class SocketStateManager {
   private static instance: SocketStateManager;
-  
+
   // Maps ws connection to user info
   private connections = new Map<WebSocket, UserConnection>();
-  
+
   // Maps roomId to set of active WebSockets in that room
   private rooms = new Map<string, Set<WebSocket>>();
 

@@ -11,11 +11,11 @@ export const chatsHandler = async (req: Request, res: Response) => {
 
   const messages = await prismaClient.chat.findMany({
     where: {
-      roomId: roomId
+      roomId: roomId,
     },
     orderBy: {
-      id: "desc"
-    }
+      id: "desc",
+    },
   });
 
   res.json({

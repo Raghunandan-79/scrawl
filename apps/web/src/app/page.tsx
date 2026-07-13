@@ -6,7 +6,16 @@ import { useRouter } from "next/navigation";
 import { BACKEND_URL } from "./config";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
-import { LogOut, ArrowRight, User, Plus, Compass, Sparkles, Download, Trash } from "lucide-react";
+import {
+  LogOut,
+  ArrowRight,
+  User,
+  Plus,
+  Compass,
+  Sparkles,
+  Download,
+  Trash,
+} from "lucide-react";
 
 const getUserIdFromToken = (token: string): string | null => {
   try {
@@ -39,7 +48,7 @@ export default function Home() {
     setLoadingRooms(true);
     try {
       const res = await axios.get(`${BACKEND_URL}/api/v1/room/my-rooms`, {
-        headers: { token: storedToken }
+        headers: { token: storedToken },
       });
       setRooms(res.data?.rooms || []);
     } catch (err) {
@@ -51,14 +60,18 @@ export default function Home() {
 
   const handleDeleteRoom = async (roomId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this workspace and all its drawings?")) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this workspace and all its drawings?",
+      )
+    ) {
       return;
     }
     const storedToken = localStorage.getItem("token");
     if (!storedToken) return;
     try {
       await axios.delete(`${BACKEND_URL}/api/v1/room/delete-room/${roomId}`, {
-        headers: { token: storedToken }
+        headers: { token: storedToken },
       });
       fetchRooms();
     } catch (err: any) {
@@ -90,12 +103,14 @@ export default function Home() {
       }
 
       // Check if room already exists by trying to join
-      const joinResponse = await axios.post(`${BACKEND_URL}/api/v1/room/join-room/${slug}`);
-      
+      const joinResponse = await axios.post(
+        `${BACKEND_URL}/api/v1/room/join-room/${slug}`,
+      );
+
       if (joinResponse.data?.room) {
         const room = joinResponse.data.room;
         const currentUserId = getUserIdFromToken(storedToken);
-        
+
         if (room.adminId === currentUserId) {
           // Room exists and user is owner -> redirect to slug (Edit mode)
           router.push(`/canvas/${room.slug}`);
@@ -114,21 +129,23 @@ export default function Home() {
             headers: {
               token: storedToken,
             },
-          }
+          },
         );
 
         if (createResponse.data?.roomId) {
           router.push(`/canvas/${slug}`);
           setIsModalOpen(false);
         } else {
-          setError("Failed to create room. It might already exist or inputs are invalid.");
+          setError(
+            "Failed to create room. It might already exist or inputs are invalid.",
+          );
         }
       }
     } catch (err: any) {
       console.error(err);
       setError(
         err.response?.data?.message ||
-          "An error occurred while opening the workspace. Ensure you are signed in."
+          "An error occurred while opening the workspace. Ensure you are signed in.",
       );
     } finally {
       setLoading(false);
@@ -161,7 +178,7 @@ export default function Home() {
           headers: {
             token: storedToken,
           },
-        }
+        },
       );
 
       if (createResponse.data?.roomId) {
@@ -173,7 +190,7 @@ export default function Home() {
       console.error(err);
       setError(
         err.response?.data?.message ||
-          "Could not generate random canvas workspace. Ensure you are signed in."
+          "Could not generate random canvas workspace. Ensure you are signed in.",
       );
     } finally {
       setLoading(false);
@@ -194,10 +211,16 @@ export default function Home() {
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-[11px] font-mono font-bold tracking-widest text-[#706B5F]">
-          <a href="#features" className="hover:text-[#1E1E1E] transition-colors">
+          <a
+            href="#features"
+            className="hover:text-[#1E1E1E] transition-colors"
+          >
             FEATURES
           </a>
-          <a href="#manifesto" className="hover:text-[#1E1E1E] transition-colors">
+          <a
+            href="#manifesto"
+            className="hover:text-[#1E1E1E] transition-colors"
+          >
             MANIFESTO
           </a>
         </nav>
@@ -248,8 +271,6 @@ export default function Home() {
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center text-center px-6 py-16 md:py-24 max-w-4xl mx-auto">
-
-
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-8 max-w-3xl">
           A raw, digital canvas for the messy middle of the creative process.
         </h1>
@@ -305,7 +326,10 @@ export default function Home() {
       </main>
 
       {/* Feature Showcase Grid Section */}
-      <section id="features" className="border-t border-[#E5E0D8] bg-white py-20 px-6">
+      <section
+        id="features"
+        className="border-t border-[#E5E0D8] bg-white py-20 px-6"
+      >
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           {/* Sketch Illustration */}
           <div className="border border-[#E5E0D8] bg-[#FAF8F5] p-8 rounded-2xl aspect-[4/3] flex items-center justify-center relative overflow-hidden shadow-sm">
@@ -325,13 +349,26 @@ export default function Home() {
               <circle cx="123" cy="98" r="49" />
               {/* wobbly cubes */}
               <rect x="200" y="80" width="80" height="80" />
-              <rect x="220" y="60" width="80" height="80" strokeDasharray="5 5" />
+              <rect
+                x="220"
+                y="60"
+                width="80"
+                height="80"
+                strokeDasharray="5 5"
+              />
               <line x1="200" y1="80" x2="220" y2="60" />
               <line x1="280" y1="80" x2="300" y2="60" />
               <line x1="280" y1="160" x2="300" y2="140" />
               <line x1="200" y1="160" x2="220" y2="140" />
               {/* lines and connections */}
-              <line x1="120" y1="150" x2="200" y2="120" stroke="#D95F4D" strokeWidth="2" />
+              <line
+                x1="120"
+                y1="150"
+                x2="200"
+                y2="120"
+                stroke="#D95F4D"
+                strokeWidth="2"
+              />
               <line x1="120" y1="150" x2="240" y2="240" />
               {/* triangle */}
               <polygon points="240,240 180,200 300,180" />
@@ -346,18 +383,22 @@ export default function Home() {
               </span>
               <h3 className="text-2xl font-bold mb-3">Zero friction input</h3>
               <p className="text-[#706B5F] leading-relaxed">
-                Modeled after the friction of graphite on heavy-weight paper. Every stroke feels
-                deliberate, not digital. Sketch ideas instantly with collaborators.
+                Modeled after the friction of graphite on heavy-weight paper.
+                Every stroke feels deliberate, not digital. Sketch ideas
+                instantly with collaborators.
               </p>
             </div>
             <div>
               <span className="font-mono text-xs text-[#D95F4D] font-bold tracking-wider block mb-2">
                 02 / INFINITE
               </span>
-              <h3 className="text-2xl font-bold mb-3">Space for every tangent</h3>
+              <h3 className="text-2xl font-bold mb-3">
+                Space for every tangent
+              </h3>
               <p className="text-[#706B5F] leading-relaxed">
-                The canvas expands with your thought process. Zoom in for details, pan out for the big
-                picture, and draw connections across massive visual planes.
+                The canvas expands with your thought process. Zoom in for
+                details, pan out for the big picture, and draw connections
+                across massive visual planes.
               </p>
             </div>
           </div>
@@ -376,8 +417,8 @@ export default function Home() {
                 Rough Mode
               </h4>
               <p className="text-sm text-[#706B5F] leading-relaxed">
-                Perfect circles are boring. Scrawl preserves the human wobble that makes your sketches
-                feel alive.
+                Perfect circles are boring. Scrawl preserves the human wobble
+                that makes your sketches feel alive.
               </p>
             </div>
           </div>
@@ -391,8 +432,8 @@ export default function Home() {
                 Quick Export
               </h4>
               <p className="text-sm text-[#706B5F] leading-relaxed">
-                Take your messy ideas into polished tools. SVG and PNG exports that look like they were
-                scanned from a notebook.
+                Take your messy ideas into polished tools. SVG and PNG exports
+                that look like they were scanned from a notebook.
               </p>
             </div>
           </div>
@@ -406,7 +447,8 @@ export default function Home() {
                 Collaborative
               </h4>
               <p className="text-sm text-[#706B5F] leading-relaxed">
-                Share a workspace link and design together in real-time. Minimal UI overlay for maximum focus.
+                Share a workspace link and design together in real-time. Minimal
+                UI overlay for maximum focus.
               </p>
             </div>
           </div>
@@ -414,7 +456,10 @@ export default function Home() {
       </section>
 
       {/* Manifesto Call-to-action */}
-      <section id="manifesto" className="bg-[#FAF8F5] border-t border-[#E5E0D8] py-24 text-center px-6">
+      <section
+        id="manifesto"
+        className="bg-[#FAF8F5] border-t border-[#E5E0D8] py-24 text-center px-6"
+      >
         <h2 className="text-3xl md:text-5xl font-extrabold mb-12">
           Your best work doesn&apos;t start in a document.
         </h2>
@@ -438,7 +483,8 @@ export default function Home() {
           <div className="bg-white border border-[#E5E0D8] rounded-2xl p-6 w-full max-w-lg relative shadow-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
             <h3 className="text-lg font-extrabold mb-1">My Workspace Pages</h3>
             <p className="text-xs text-[#706B5F] mb-6">
-              Create new whiteboards or open and delete pages under your account.
+              Create new whiteboards or open and delete pages under your
+              account.
             </p>
 
             {/* List of active rooms */}
@@ -486,7 +532,10 @@ export default function Home() {
             </div>
 
             <div className="border-t border-[#E5E0D8] pt-5">
-              <form onSubmit={handleCreateOrJoinRoom} className="flex flex-col gap-3">
+              <form
+                onSubmit={handleCreateOrJoinRoom}
+                className="flex flex-col gap-3"
+              >
                 <Input
                   label="Create or Join Custom Room Slug"
                   placeholder="Enter page slug (e.g. wireframe-design)"
@@ -496,10 +545,20 @@ export default function Home() {
                 />
                 {error && <p className="text-xs text-[#D95F4D]">{error}</p>}
                 <div className="flex gap-2.5 mt-2 justify-end">
-                  <Button variant="secondary" size="sm" type="button" onClick={() => setIsModalOpen(false)}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                  >
                     Close
                   </Button>
-                  <Button variant="primary" size="sm" type="submit" isLoading={loading}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="submit"
+                    isLoading={loading}
+                  >
                     Open Canvas Page
                   </Button>
                 </div>

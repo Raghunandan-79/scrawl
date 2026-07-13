@@ -49,7 +49,9 @@ export const deleteRoomHandler = async (req: Request, res: Response) => {
     }
 
     if (room.adminId !== userId) {
-      return res.status(403).json({ message: "Forbidden: You are not the admin of this room" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: You are not the admin of this room" });
     }
 
     // Delete associated chats

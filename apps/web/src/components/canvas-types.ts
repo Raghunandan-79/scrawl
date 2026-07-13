@@ -1,4 +1,13 @@
-export type Tool = "select" | "hand" | "pencil" | "rect" | "ellipse" | "line" | "arrow" | "text" | "eraser";
+export type Tool =
+  | "select"
+  | "hand"
+  | "pencil"
+  | "rect"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text"
+  | "eraser";
 
 export interface Point {
   x: number;

@@ -23,6 +23,7 @@ Scrawl is a lightweight, high-performance, real-time collaborative digital white
 ## 🛠️ Architecture (Monorepo)
 
 This project is built as a TypeScript Turborepo monorepo:
+
 - **`apps/web`**: Next.js App Router (TypeScript, Tailwind CSS) for landing page, auth, and canvas interface.
 - **`apps/http-backend`**: Express API handling user auth, database room management, and CORS routing.
 - **`apps/ws-backend`**: Node.js WebSocket Server managing real-time cursor broadcasting and drawing synchronization.
@@ -44,7 +45,7 @@ The following diagram illustrates how clients connect to the HTTP server for aut
 graph TD
     Client1[Next.js Client A] <-->|HTTPS Rest APIs| HTTP[HTTP Express Backend]
     Client2[Next.js Client B] <-->|HTTPS Rest APIs| HTTP
-    
+
     Client1 <-->|WSS Events| WS[WebSocket Backend]
     Client2 <-->|WSS Events| WS
 
@@ -88,6 +89,7 @@ sequenceDiagram
 ### WebSocket Message Schemas
 
 #### Client to Server
+
 ```typescript
 // Joining a room
 { "type": "join_room", "roomId": "123", "token": "JWT_TOKEN" }
@@ -144,6 +146,7 @@ model Chat {
 ## 4. Graphics & Canvas Pipeline
 
 ### 4.1 Input Mapping (Mouse vs. Touch)
+
 To ensure drawing, selecting, and panning work flawlessly on both desktops and mobile devices, we map mouse and touch event pointers to a unified coordinate-processing pipeline:
 
 ```typescript
@@ -160,9 +163,11 @@ const handleStart = (clientX: number, clientY: number) => {
 canvas.addEventListener("touchstart", onTouchStart, { passive: false });
 canvas.addEventListener("touchmove", onTouchMove, { passive: false });
 ```
-*Note: Touch event listeners are registered manually with `{ passive: false }` to override default browser mobile scrolling and pull-to-refresh gestures while drawing.*
+
+_Note: Touch event listeners are registered manually with `{ passive: false }` to override default browser mobile scrolling and pull-to-refresh gestures while drawing._
 
 ### 4.2 Multi-Touch (Pinch-to-Zoom)
+
 Pinch-to-zoom uses two simultaneous touches. We compute the initial distance and scale user zoom based on finger movements, centering the camera viewport on the pinch midpoint:
 
 $$\text{Midpoint } M = \left(\frac{x_1 + x_2}{2}, \frac{y_1 + y_2}{2}\right)$$
@@ -170,9 +175,10 @@ $$\text{Midpoint } M = \left(\frac{x_1 + x_2}{2}, \frac{y_1 + y_2}{2}\right)$$
 $$\text{New Zoom } Z_{\text{new}} = Z_{\text{initial}} \times \left(\frac{\text{Current Distance}}{\text{Initial Distance}}\right)$$
 
 $$\text{New Pan } P_{\text{new}} = M - W \times Z_{\text{new}}$$
-*(where $W$ is the screen midpoint's corresponding world coordinate before scaling).*
+_(where $W$ is the screen midpoint's corresponding world coordinate before scaling)._
 
 ### 4.3 High-DPI Resolution Scaling
+
 To prevent blurry shapes on high-density displays (e.g. Apple Retina, iPad Pro, Android AMOLED), we scale the canvas buffer relative to the device pixel ratio, and offset the scale context:
 
 ```typescript
@@ -190,12 +196,16 @@ ctx.scale(dpr, dpr); // Compensates coordinate scale
 ## 5. Conflict Resolution & Sync Strategy
 
 ### 5.1 Last-Write-Wins (LWW)
+
 Scrawl operates on an optimistic **Last-Write-Wins** strategy on a per-element basis.
+
 - When an element is added, edited (moved/resized), or deleted, it carries a globally unique, client-side generated UUID (`shape-1720684...`).
 - Drawing edits arrive as WebSocket updates. The receiving clients replace the locally stored element matching the UUID with the incoming state, ensuring eventual consistency.
 
 ### 5.2 Guest Workspace Caching
+
 When operating in Guest Mode:
+
 - Rooms and DB writes are bypassed.
 - Drawing actions are written asynchronously to `localStorage` under `guest_canvas_elements`.
 - Upon mounting `/canvas/guest`, the canvas reads elements directly from local storage, maintaining single-session workspace persistence without database writes.
@@ -205,11 +215,13 @@ When operating in Guest Mode:
 ## ⚙️ Getting Started
 
 ### Prerequisites
+
 - Node.js (v18+)
 - PostgreSQL Database
 - `pnpm` package manager (`npm install -g pnpm`)
 
 ### Installation
+
 1. Clone the repository and install dependencies:
    ```bash
    pnpm install

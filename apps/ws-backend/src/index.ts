@@ -28,11 +28,16 @@ server.listen(PORT, () => {
 const selfUrl = process.env.RENDER_EXTERNAL_URL;
 if (selfUrl) {
   console.log(`Self-ping keep-alive registered for: ${selfUrl}`);
-  setInterval(() => {
-    fetch(selfUrl)
-      .then((res) => console.log(`Self-ping successful: status ${res.status}`))
-      .catch((err) => console.error("Self-ping failed:", err));
-  }, 10 * 60 * 1000); // every 10 minutes
+  setInterval(
+    () => {
+      fetch(selfUrl)
+        .then((res) =>
+          console.log(`Self-ping successful: status ${res.status}`),
+        )
+        .catch((err) => console.error("Self-ping failed:", err));
+    },
+    10 * 60 * 1000,
+  ); // every 10 minutes
 }
 
 function checkUser(token: string): string | null {
@@ -148,7 +153,7 @@ wss.on("connection", async function connection(ws, request) {
                 x,
                 y,
                 roomId,
-              })
+              }),
             );
           }
         });
@@ -169,7 +174,7 @@ wss.on("connection", async function connection(ws, request) {
                 type: "chat",
                 message: message,
                 roomId,
-              })
+              }),
             );
           }
         });
@@ -178,15 +183,17 @@ wss.on("connection", async function connection(ws, request) {
       }
 
       // 2. Persist to database asynchronously in the background
-      prismaClient.chat.create({
-        data: {
-          roomId: Number(roomId),
-          message: message,
-          userId,
-        },
-      }).catch((dbErr) => {
-        console.error("Failed to save drawing/chat event to DB:", dbErr);
-      });
+      prismaClient.chat
+        .create({
+          data: {
+            roomId: Number(roomId),
+            message: message,
+            userId,
+          },
+        })
+        .catch((dbErr) => {
+          console.error("Failed to save drawing/chat event to DB:", dbErr);
+        });
     }
   });
 });

@@ -25,7 +25,10 @@ import {
   Eraser,
   Home,
   Share2,
+  Play,
+  Pause,
 } from "lucide-react";
+import { FlowArrow } from "./FlowArrow";
 
 interface CanvasProps {
   roomId: string;
@@ -34,7 +37,12 @@ interface CanvasProps {
   isReadOnly?: boolean;
 }
 
-export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }: CanvasProps) {
+export function Canvas({
+  roomId,
+  roomSlug,
+  initialElements,
+  isReadOnly = false,
+}: CanvasProps) {
   const router = useRouter();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState(false);
@@ -45,7 +53,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const [elements, setElements] = useState<CanvasElement[]>(initialElements);
   // Default to hand tool if read-only, rect otherwise
   const [tool, setTool] = useState<Tool>(isReadOnly ? "hand" : "rect");
-  
+
   // Style Options
   const [strokeColor, setStrokeColor] = useState("#1E1E1E");
   const [fillColor, setFillColor] = useState("transparent");
@@ -54,24 +62,51 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const [roughMode, setRoughMode] = useState(true);
   const [showMobileStyles, setShowMobileStyles] = useState(false);
 
+  const [isAnimating, setIsAnimating] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("scrawl_animate_enabled");
+      return stored !== null ? stored === "true" : true;
+    }
+    return true;
+  });
+
+  const toggleAnimation = () => {
+    setIsAnimating((prev) => {
+      const next = !prev;
+      localStorage.setItem("scrawl_animate_enabled", String(next));
+      return next;
+    });
+  };
+
   // Viewport transforms
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
 
   // Collaborator cursors state
   const [collaboratorCursors, setCollaboratorCursors] = useState<
-    Record<string, { x: number; y: number; userName: string; updatedAt: number }>
+    Record<
+      string,
+      { x: number; y: number; userName: string; updatedAt: number }
+    >
   >({});
 
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point>({ x: 0, y: 0 });
-  const [activeElement, setActiveElement] = useState<CanvasElement | null>(null);
-  const [textInput, setTextInput] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [activeElement, setActiveElement] = useState<CanvasElement | null>(
+    null,
+  );
+  const [textInput, setTextInput] = useState<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Selection state
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(
+    null,
+  );
   const [dragMode, setDragMode] = useState<"move" | "resize" | null>(null);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null); // "nw", "ne", "se", "sw"
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
@@ -94,15 +129,33 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
 
-  useEffect(() => { toolRef.current = tool; }, [tool]);
-  useEffect(() => { activeElementRef.current = activeElement; }, [activeElement]);
-  useEffect(() => { selectedElementIdRef.current = selectedElementId; }, [selectedElementId]);
-  useEffect(() => { dragModeRef.current = dragMode; }, [dragMode]);
-  useEffect(() => { dragOffsetRef.current = dragOffset; }, [dragOffset]);
-  useEffect(() => { resizeHandleRef.current = resizeHandle; }, [resizeHandle]);
-  useEffect(() => { startPointRef.current = startPoint; }, [startPoint]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
+  useEffect(() => {
+    activeElementRef.current = activeElement;
+  }, [activeElement]);
+  useEffect(() => {
+    selectedElementIdRef.current = selectedElementId;
+  }, [selectedElementId]);
+  useEffect(() => {
+    dragModeRef.current = dragMode;
+  }, [dragMode]);
+  useEffect(() => {
+    dragOffsetRef.current = dragOffset;
+  }, [dragOffset]);
+  useEffect(() => {
+    resizeHandleRef.current = resizeHandle;
+  }, [resizeHandle]);
+  useEffect(() => {
+    startPointRef.current = startPoint;
+  }, [startPoint]);
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Window resize tracking state
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
@@ -139,21 +192,34 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       const maxSpeed = 12;
 
       if (clientX < rect.left + edgeThreshold) {
-        scrollX = Math.max(1, ((rect.left + edgeThreshold - clientX) / edgeThreshold) * maxSpeed);
+        scrollX = Math.max(
+          1,
+          ((rect.left + edgeThreshold - clientX) / edgeThreshold) * maxSpeed,
+        );
       } else if (clientX > rect.right - edgeThreshold) {
-        scrollX = -Math.max(1, ((clientX - (rect.right - edgeThreshold)) / edgeThreshold) * maxSpeed);
+        scrollX = -Math.max(
+          1,
+          ((clientX - (rect.right - edgeThreshold)) / edgeThreshold) * maxSpeed,
+        );
       }
 
       if (clientY < rect.top + edgeThreshold) {
-        scrollY = Math.max(1, ((rect.top + edgeThreshold - clientY) / edgeThreshold) * maxSpeed);
+        scrollY = Math.max(
+          1,
+          ((rect.top + edgeThreshold - clientY) / edgeThreshold) * maxSpeed,
+        );
       } else if (clientY > rect.bottom - edgeThreshold) {
-        scrollY = -Math.max(1, ((clientY - (rect.bottom - edgeThreshold)) / edgeThreshold) * maxSpeed);
+        scrollY = -Math.max(
+          1,
+          ((clientY - (rect.bottom - edgeThreshold)) / edgeThreshold) *
+            maxSpeed,
+        );
       }
 
       if (scrollX !== 0 || scrollY !== 0) {
         setPan((prev) => {
           const nextPan = { x: prev.x + scrollX, y: prev.y + scrollY };
-          
+
           const mouseWorldPos = {
             x: (clientX - rect.left - nextPan.x) / zoom,
             y: (clientY - rect.top - nextPan.y) / zoom,
@@ -172,7 +238,10 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
                   };
                 }
 
-                if (dragModeRef.current === "resize" && resizeHandleRef.current) {
+                if (
+                  dragModeRef.current === "resize" &&
+                  resizeHandleRef.current
+                ) {
                   let x = el.x;
                   let y = el.y;
                   let width = el.width;
@@ -210,7 +279,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
                 }
 
                 return el;
-              })
+              }),
             );
           } else if (activeElementRef.current) {
             if (activeElementRef.current.type === "pencil") {
@@ -261,16 +330,22 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         JSON.stringify({
           type: "join_room",
           roomId: roomId.toString(),
-        })
+        }),
       );
 
       socket.onmessage = (event) => {
         try {
           const parsedData = JSON.parse(event.data);
-          if (parsedData.type === "chat" && parsedData.roomId === roomId.toString()) {
+          if (
+            parsedData.type === "chat" &&
+            parsedData.roomId === roomId.toString()
+          ) {
             const action: CanvasAction = JSON.parse(parsedData.message);
             handleCollaborativeAction(action);
-          } else if (parsedData.type === "cursor_move" && parsedData.roomId === roomId.toString()) {
+          } else if (
+            parsedData.type === "cursor_move" &&
+            parsedData.roomId === roomId.toString()
+          ) {
             setCollaboratorCursors((prev) => ({
               ...prev,
               [parsedData.userId]: {
@@ -307,10 +382,14 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     return () => clearInterval(interval);
   }, []);
 
-  // Save guest canvas to localStorage
+  // Save canvas elements to localStorage for all room types
   useEffect(() => {
-    if (roomId === "guest") {
-      localStorage.setItem("guest_canvas_elements", JSON.stringify(elements));
+    if (roomId) {
+      const storageKey =
+        roomId === "guest"
+          ? "guest_canvas_elements"
+          : `scrawl_elements_${roomId}`;
+      localStorage.setItem(storageKey, JSON.stringify(elements));
     }
   }, [elements, roomId]);
 
@@ -332,7 +411,9 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           return prev;
         case "update":
           if (action.element) {
-            return prev.map((e) => (e.id === action.element!.id ? action.element! : e));
+            return prev.map((e) =>
+              e.id === action.element!.id ? action.element! : e,
+            );
           }
           return prev;
         case "delete":
@@ -354,7 +435,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           type: "chat",
           roomId: roomId.toString(),
           message: JSON.stringify(action),
-        })
+        }),
       );
     }
   };
@@ -434,7 +515,11 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   };
 
   // Find resize handle clicked
-  const getResizeHandleAtPos = (x: number, y: number, el: CanvasElement): string | null => {
+  const getResizeHandleAtPos = (
+    x: number,
+    y: number,
+    el: CanvasElement,
+  ): string | null => {
     const handleSize = 8 / zoom;
     const xMin = Math.min(el.x, el.x + el.width);
     const xMax = Math.max(el.x, el.x + el.width);
@@ -464,9 +549,11 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     if (!ctx) return;
 
     // Reset size scaled by devicePixelRatio for high-DPI screens
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const dpr =
+      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
     const displayWidth = canvas.parentElement?.clientWidth || window.innerWidth;
-    const displayHeight = canvas.parentElement?.clientHeight || window.innerHeight;
+    const displayHeight =
+      canvas.parentElement?.clientHeight || window.innerHeight;
 
     canvas.width = displayWidth * dpr;
     canvas.height = displayHeight * dpr;
@@ -531,7 +618,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
     // Render collaborator cursors in screen space
     const activeCursors = Object.entries(collaboratorCursors).filter(
-      ([_, c]) => Date.now() - c.updatedAt < 3000
+      ([_, c]) => Date.now() - c.updatedAt < 3000,
     );
 
     activeCursors.forEach(([userId, cursor]) => {
@@ -542,8 +629,17 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       ctx.translate(screenX, screenY);
 
       // Stable color based on username
-      const colors = ["#D95F4D", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
-      const charCodeSum = cursor.userName.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      const colors = [
+        "#D95F4D",
+        "#3B82F6",
+        "#10B981",
+        "#F59E0B",
+        "#8B5CF6",
+        "#EC4899",
+      ];
+      const charCodeSum = cursor.userName
+        .split("")
+        .reduce((sum, char) => sum + char.charCodeAt(0), 0);
       const color = colors[charCodeSum % colors.length];
 
       ctx.fillStyle = color;
@@ -566,7 +662,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
       // Draw name tag
       ctx.font = "bold 11px sans-serif";
       const nameWidth = ctx.measureText(cursor.userName).width;
-      
+
       ctx.fillStyle = color;
       const paddingX = 6;
       const paddingY = 4;
@@ -589,7 +685,17 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
       ctx.restore();
     });
-  }, [elements, activeElement, selectedElementId, zoom, pan, roughMode, tool, collaboratorCursors, canvasSize]);
+  }, [
+    elements,
+    activeElement,
+    selectedElementId,
+    zoom,
+    pan,
+    roughMode,
+    tool,
+    collaboratorCursors,
+    canvasSize,
+  ]);
 
   // Handle infinite scroll wheel and zoom events
   useEffect(() => {
@@ -619,7 +725,10 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   // Keyboard hotkeys for tools and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
         return;
       }
 
@@ -741,7 +850,10 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           setResizeHandle(handle);
         } else {
           setDragMode("move");
-          setDragOffset({ x: mousePos.x - clickedEl.x, y: mousePos.y - clickedEl.y });
+          setDragOffset({
+            x: mousePos.x - clickedEl.x,
+            y: mousePos.y - clickedEl.y,
+          });
         }
       } else {
         setSelectedElementId(null);
@@ -778,11 +890,15 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     setActiveElement(newElement);
   };
 
-  const updateDrawingState = (clientX: number, clientY: number, currentPan: Point) => {
+  const updateDrawingState = (
+    clientX: number,
+    clientY: number,
+    currentPan: Point,
+  ) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    
+
     // Calculate world position based on currentPan
     const mouseWorldPos = {
       x: (clientX - rect.left - currentPan.x) / zoom,
@@ -854,7 +970,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           }
 
           return el;
-        })
+        }),
       );
       return;
     }
@@ -884,7 +1000,8 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   const lastCursorSent = useRef<number>(0);
   const sendCursorPosition = (x: number, y: number) => {
     const now = Date.now();
-    if (now - lastCursorSent.current > 50) { // Throttle 50ms
+    if (now - lastCursorSent.current > 50) {
+      // Throttle 50ms
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(
           JSON.stringify({
@@ -892,7 +1009,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
             roomId: roomId.toString(),
             x,
             y,
-          })
+          }),
         );
         lastCursorSent.current = now;
       }
@@ -977,7 +1094,10 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         isPinching.current = true;
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
-        pinchStartDist.current = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        pinchStartDist.current = Math.hypot(
+          touch1.clientX - touch2.clientX,
+          touch1.clientY - touch2.clientY,
+        );
         pinchStartZoom.current = zoomRef.current;
         return;
       }
@@ -992,13 +1112,23 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && isPinching.current && pinchStartDist.current !== null) {
+      if (
+        e.touches.length === 2 &&
+        isPinching.current &&
+        pinchStartDist.current !== null
+      ) {
         if (e.cancelable) e.preventDefault();
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
-        const currentDist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        const currentDist = Math.hypot(
+          touch1.clientX - touch2.clientX,
+          touch1.clientY - touch2.clientY,
+        );
         const factor = currentDist / pinchStartDist.current;
-        const newZoom = Math.min(10, Math.max(0.1, pinchStartZoom.current * factor));
+        const newZoom = Math.min(
+          10,
+          Math.max(0.1, pinchStartZoom.current * factor),
+        );
 
         const midX = (touch1.clientX + touch2.clientX) / 2;
         const midY = (touch1.clientY + touch2.clientY) / 2;
@@ -1006,7 +1136,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         const rect = canvas.getBoundingClientRect();
         const currentZoom = zoomRef.current;
         const currentPan = panRef.current;
-        
+
         // World position before zoom change
         const worldX = (midX - rect.left - currentPan.x) / currentZoom;
         const worldY = (midY - rect.top - currentPan.y) / currentZoom;
@@ -1079,7 +1209,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
     const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const fontSize = strokeWidth * 6;
     const lines = textInput.text.split("\n");
-    
+
     // Estimate width & height
     const longestLineLen = Math.max(...lines.map((l) => l.length));
     const width = longestLineLen * fontSize * 0.6;
@@ -1142,7 +1272,9 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
   };
 
   const handleClear = () => {
-    if (window.confirm("Are you sure you want to clear the entire workspace?")) {
+    if (
+      window.confirm("Are you sure you want to clear the entire workspace?")
+    ) {
       elements.forEach((el) => {
         broadcastAction({ type: "delete", elementId: el.id });
       });
@@ -1183,6 +1315,17 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
         onMouseUp={handleMouseUp}
       />
 
+      {/* SVG Animation Overlay */}
+      <svg className="absolute inset-0 pointer-events-none w-full h-full z-[5]">
+        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+          {elements
+            .filter((el) => el.type === "arrow")
+            .map((el) => (
+              <FlowArrow key={el.id} element={el} isAnimating={isAnimating} />
+            ))}
+        </g>
+      </svg>
+
       {/* Floating text edit area */}
       {textInput && (
         <div
@@ -1206,7 +1349,9 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
               height: "100px",
             }}
             value={textInput.text}
-            onChange={(e) => setTextInput({ ...textInput, text: e.target.value })}
+            onChange={(e) =>
+              setTextInput({ ...textInput, text: e.target.value })
+            }
             onBlur={commitTextInput}
             placeholder="Type drawing text..."
           />
@@ -1226,28 +1371,30 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
             { id: "pencil", icon: Pencil, label: "Pencil (P)" },
             { id: "text", icon: Type, label: "Text (T)" },
             { id: "eraser", icon: Eraser, label: "Eraser (E)" },
-          ].filter((t) => !isReadOnly || t.id === "select" || t.id === "hand").map((t) => {
-            const IconComp = t.icon;
-            const isActive = tool === t.id;
-            return (
-              <Button
-                key={t.id}
-                variant={isActive ? "active" : "ghost"}
-                size="icon"
-                className="relative group transition-all"
-                onClick={() => {
-                  setTool(t.id as Tool);
-                  setSelectedElementId(null);
-                }}
-                title={t.label}
-              >
-                <IconComp className="h-4 w-4" />
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
-                  {t.label}
-                </span>
-              </Button>
-            );
-          })}
+          ]
+            .filter((t) => !isReadOnly || t.id === "select" || t.id === "hand")
+            .map((t) => {
+              const IconComp = t.icon;
+              const isActive = tool === t.id;
+              return (
+                <Button
+                  key={t.id}
+                  variant={isActive ? "active" : "ghost"}
+                  size="icon"
+                  className="relative group transition-all"
+                  onClick={() => {
+                    setTool(t.id as Tool);
+                    setSelectedElementId(null);
+                  }}
+                  title={t.label}
+                >
+                  <IconComp className="h-4 w-4" />
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
+                    {t.label}
+                  </span>
+                </Button>
+              );
+            })}
         </div>
       </div>
 
@@ -1261,7 +1408,7 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           <Home className="h-4 w-4" />
           <span className="hidden sm:inline">HOME</span>
         </Button>
-        
+
         {!isReadOnly && (
           <Button
             variant={showMobileStyles ? "active" : "secondary"}
@@ -1283,122 +1430,145 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
 
       {/* Styles sidebar - Floating left */}
       {!isReadOnly && (
-        <div className={`absolute top-20 left-6 z-10 flex flex-col gap-6 bg-[#FAF8F5] border border-[#E5E0D8] p-5 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] w-56 transition-all ${
-          showMobileStyles ? "flex" : "hidden md:flex"
-        }`}>
-        <div>
-          <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
-            Stroke Color
-          </h4>
-          <div className="grid grid-cols-5 gap-2">
-            {[
-              "#1E1E1E", // black
-              "#A19D94", // gray
-              "#D95F4D", // terracotta red
-              "#2D9CDB", // blue
-              "#27AE60", // green
-              "#F2994A", // orange
-              "#9B51E0", // purple
-              "#EB5757", // light red
-            ].map((col) => (
-              <button
-                key={col}
-                className={`w-6 h-6 rounded-md border transition-all ${
-                  strokeColor === col ? "ring-2 ring-[#D95F4D] scale-110" : "border-[#E5E0D8]"
-                }`}
-                style={{ backgroundColor: col }}
-                onClick={() => setStrokeColor(col)}
-              />
-            ))}
+        <div
+          className={`absolute top-20 left-6 z-10 flex flex-col gap-6 bg-[#FAF8F5] border border-[#E5E0D8] px-4 py-5 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] w-56 transition-all ${
+            showMobileStyles ? "flex" : "hidden md:flex"
+          }`}
+        >
+          <div>
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+              Stroke Color
+            </h4>
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                "#1E1E1E", // black
+                "#A19D94", // gray
+                "#D95F4D", // terracotta red
+                "#2D9CDB", // blue
+                "#27AE60", // green
+                "#F2994A", // orange
+                "#9B51E0", // purple
+                "#EB5757", // light red
+              ].map((col) => (
+                <button
+                  key={col}
+                  className={`w-8 h-8 rounded-md border transition-all ${
+                    strokeColor === col
+                      ? "ring-2 ring-[#D95F4D] scale-110"
+                      : "border-[#E5E0D8]"
+                  }`}
+                  style={{ backgroundColor: col }}
+                  onClick={() => setStrokeColor(col)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+              Fill Color
+            </h4>
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                "transparent",
+                "#FAF8F5",
+                "#F5C7C1", // soft red
+                "#D6EAF8", // soft blue
+                "#D4EFDF", // soft green
+                "#FDEBD0", // soft orange
+                "#E8DAEF", // soft purple
+              ].map((col) => (
+                <button
+                  key={col}
+                  className={`w-8 h-8 rounded-md border relative transition-all ${
+                    fillColor === col
+                      ? "ring-2 ring-[#D95F4D] scale-110"
+                      : "border-[#E5E0D8]"
+                  }`}
+                  style={{
+                    backgroundColor: col === "transparent" ? "white" : col,
+                  }}
+                  onClick={() => setFillColor(col)}
+                >
+                  {col === "transparent" && (
+                    <span className="absolute inset-0 flex items-center justify-center text-[#A19D94] text-xs">
+                      /
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+              Stroke Width
+            </h4>
+            <div className="flex gap-2">
+              {[1, 2, 4, 6].map((w, idx) => (
+                <Button
+                  key={w}
+                  variant={strokeWidth === w ? "active" : "secondary"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => setStrokeWidth(w)}
+                >
+                  {["S", "M", "L", "XL"][idx]}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+              Stroke Style
+            </h4>
+            <div className="flex gap-2">
+              {(["solid", "dashed"] as const).map((style) => (
+                <Button
+                  key={style}
+                  variant={strokeStyle === style ? "active" : "secondary"}
+                  size="sm"
+                  className="flex-1 text-xs capitalize"
+                  onClick={() => setStrokeStyle(style)}
+                >
+                  {style}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+              Rough wobble Mode
+            </h4>
+            <Button
+              variant={roughMode ? "active" : "secondary"}
+              size="sm"
+              className="w-full flex items-center justify-center gap-2 text-xs"
+              onClick={() => setRoughMode(!roughMode)}
+            >
+              <Sparkles className="h-3 w-3 text-[#D95F4D]" />
+              {roughMode ? "Rough Wobble: ON" : "Perfect Vector: ON"}
+            </Button>
           </div>
         </div>
-
-        <div>
-          <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
-            Fill Color
-          </h4>
-          <div className="grid grid-cols-5 gap-2">
-            {[
-              "transparent",
-              "#FAF8F5",
-              "#F5C7C1", // soft red
-              "#D6EAF8", // soft blue
-              "#D4EFDF", // soft green
-              "#FDEBD0", // soft orange
-              "#E8DAEF", // soft purple
-            ].map((col) => (
-              <button
-                key={col}
-                className={`w-6 h-6 rounded-md border relative transition-all ${
-                  fillColor === col ? "ring-2 ring-[#D95F4D] scale-110" : "border-[#E5E0D8]"
-                }`}
-                style={{ backgroundColor: col === "transparent" ? "white" : col }}
-                onClick={() => setFillColor(col)}
-              >
-                {col === "transparent" && (
-                  <span className="absolute inset-0 flex items-center justify-center text-[#A19D94] text-xs">
-                    /
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
-            Stroke Width
-          </h4>
-          <div className="flex gap-2">
-            {[1, 2, 4, 6].map((w, idx) => (
-              <Button
-                key={w}
-                variant={strokeWidth === w ? "active" : "secondary"}
-                className="flex-1 py-1 text-xs"
-                onClick={() => setStrokeWidth(w)}
-              >
-                {["S", "M", "L", "XL"][idx]}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
-            Stroke Style
-          </h4>
-          <div className="flex gap-2">
-            {(["solid", "dashed"] as const).map((style) => (
-              <Button
-                key={style}
-                variant={strokeStyle === style ? "active" : "secondary"}
-                className="flex-1 py-1 text-xs capitalize"
-                onClick={() => setStrokeStyle(style)}
-              >
-                {style}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
-            Rough wobble Mode
-          </h4>
-          <Button
-            variant={roughMode ? "active" : "secondary"}
-            className="w-full flex items-center gap-2 py-1 text-xs"
-            onClick={() => setRoughMode(!roughMode)}
-          >
-            <Sparkles className="h-3 w-3 text-[#D95F4D]" />
-            {roughMode ? "Rough Wobble: ON" : "Perfect Vector: ON"}
-          </Button>
-        </div>
-      </div>
       )}
 
       {/* Control Actions - Floating right top */}
       <div className="absolute top-6 right-6 z-10 flex gap-2">
+        <Button
+          variant={isAnimating ? "active" : "secondary"}
+          size="icon"
+          onClick={toggleAnimation}
+          title={isAnimating ? "Pause animations" : "Play animations"}
+        >
+          {isAnimating ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+        </Button>
         {!isReadOnly && (
           <>
             <Button
@@ -1447,20 +1617,32 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
             className="flex items-center gap-1.5"
           >
             <Share2 className="h-4 w-4 text-[#D95F4D]" />
-            <span className="hidden sm:inline text-xs font-mono font-bold">SHARE</span>
+            <span className="hidden sm:inline text-xs font-mono font-bold">
+              SHARE
+            </span>
           </Button>
         )}
       </div>
 
       {/* Zoom Widget - Floating bottom left */}
       <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1.5 rounded-lg shadow-sm">
-        <Button variant="ghost" size="icon" onClick={() => adjustZoom(0.8)} className="h-8 w-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => adjustZoom(0.8)}
+          className="h-8 w-8"
+        >
           <ZoomOut className="h-4 w-4" />
         </Button>
         <span className="text-xs font-mono font-semibold px-2 w-12 text-center text-[#1E1E1E]">
           {Math.round(zoom * 100)}%
         </span>
-        <Button variant="ghost" size="icon" onClick={() => adjustZoom(1.2)} className="h-8 w-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => adjustZoom(1.2)}
+          className="h-8 w-8"
+        >
           <ZoomIn className="h-4 w-4" />
         </Button>
         <Button
@@ -1482,7 +1664,8 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
           <div className="bg-white border border-[#E5E0D8] rounded-2xl p-6 w-full max-w-md relative shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-extrabold mb-2">Share Workspace</h3>
             <p className="text-xs text-[#706B5F] mb-6">
-              Share links to view or edit this workspace. Keep the edit link private.
+              Share links to view or edit this workspace. Keep the edit link
+              private.
             </p>
 
             <div className="space-y-4">
@@ -1494,14 +1677,20 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
                   <input
                     type="text"
                     readOnly
-                    value={typeof window !== "undefined" ? `${window.location.origin}/canvas/${roomSlug}` : ""}
+                    value={
+                      typeof window !== "undefined"
+                        ? `${window.location.origin}/canvas/${roomSlug}`
+                        : ""
+                    }
                     className="flex-1 rounded-md border border-[#E5E0D8] bg-[#FAF8F5] px-3 py-1.5 text-xs text-[#1E1E1E] focus:outline-none"
                   />
                   <Button
                     variant="secondary"
                     className="text-xs py-1"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/canvas/${roomSlug}`);
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/canvas/${roomSlug}`,
+                      );
                       setCopiedEdit(true);
                       setTimeout(() => setCopiedEdit(false), 2000);
                     }}
@@ -1519,14 +1708,20 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
                   <input
                     type="text"
                     readOnly
-                    value={typeof window !== "undefined" ? `${window.location.origin}/canvas/${roomId}` : ""}
+                    value={
+                      typeof window !== "undefined"
+                        ? `${window.location.origin}/canvas/${roomId}`
+                        : ""
+                    }
                     className="flex-1 rounded-md border border-[#E5E0D8] bg-[#FAF8F5] px-3 py-1.5 text-xs text-[#1E1E1E] focus:outline-none"
                   />
                   <Button
                     variant="secondary"
                     className="text-xs py-1"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/canvas/${roomId}`);
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/canvas/${roomId}`,
+                      );
                       setCopiedRead(true);
                       setTimeout(() => setCopiedRead(false), 2000);
                     }}
@@ -1538,7 +1733,11 @@ export function Canvas({ roomId, roomSlug, initialElements, isReadOnly = false }
             </div>
 
             <div className="flex justify-end mt-6">
-              <Button variant="primary" size="sm" onClick={() => setIsShareModalOpen(false)}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsShareModalOpen(false)}
+              >
                 Done
               </Button>
             </div>

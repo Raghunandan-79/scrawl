@@ -19,7 +19,7 @@ export const signInHandler = async (req: Request, res: Response) => {
     const password = parsedData.data.password;
     const user = await prismaClient.user.findUnique({
       where: {
-        username
+        username,
       },
     });
 

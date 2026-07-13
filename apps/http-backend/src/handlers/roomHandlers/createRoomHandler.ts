@@ -28,11 +28,11 @@ export const createRoomHandler = async (req: Request, res: Response) => {
     });
 
     res.json({
-      roomId: room.id
-    })
-  } catch(e) {
+      roomId: room.id,
+    });
+  } catch (e) {
     return res.status(411).json({
-      messsage: "Room already exists with this name"
-    })
+      messsage: "Room already exists with this name",
+    });
   }
 };

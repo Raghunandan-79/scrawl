@@ -55,7 +55,8 @@ export function useSocket() {
         }
 
         // Schedule auto-reconnect after 3 seconds
-        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+        if (reconnectTimeoutRef.current)
+          clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = setTimeout(() => {
           console.log("Attempting WebSocket reconnection...");
           connect();
@@ -67,7 +68,8 @@ export function useSocket() {
 
     return () => {
       if (pingInterval) clearInterval(pingInterval);
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (reconnectTimeoutRef.current)
+        clearTimeout(reconnectTimeoutRef.current);
       if (ws) {
         // Remove listeners before closing to prevent reconnect loops on unmount
         ws.onopen = null;

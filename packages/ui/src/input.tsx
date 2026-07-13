@@ -1,6 +1,7 @@
 import * as React from "react";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
 }
@@ -25,7 +26,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className={`flex h-10 w-full rounded-md border border-[#E5E0D8] bg-[#FAF8F5] px-3 py-2 text-sm text-[#1E1E1E] transition-all duration-200 placeholder:text-[#A19D94] focus:outline-none focus:border-[#1E1E1E] focus:ring-1 focus:ring-[#1E1E1E] disabled:cursor-not-allowed disabled:opacity-50 ${
               isPasswordType ? "pr-10" : ""
             } ${
-              error ? "border-[#D95F4D] focus:border-[#D95F4D] focus:ring-[#D95F4D]" : ""
+              error
+                ? "border-[#D95F4D] focus:border-[#D95F4D] focus:ring-[#D95F4D]"
+                : ""
             } ${className}`}
             ref={ref}
             {...props}
@@ -84,7 +87,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = "Input";

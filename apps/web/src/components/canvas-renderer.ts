@@ -6,7 +6,7 @@ export function drawWobblyLine(
   x1: number,
   y1: number,
   x2: number,
-  y2: number
+  y2: number,
 ) {
   const length = Math.hypot(x2 - x1, y2 - y1);
   if (length < 1) return;
@@ -33,7 +33,7 @@ export function drawWobblyLine(
       cx,
       cy,
       x2 + (Math.random() - 0.5) * offset * 0.3,
-      y2 + (Math.random() - 0.5) * offset * 0.3
+      y2 + (Math.random() - 0.5) * offset * 0.3,
     );
     ctx.stroke();
   };
@@ -48,7 +48,7 @@ export function drawWobblyEllipse(
   cx: number,
   cy: number,
   rx: number,
-  ry: number
+  ry: number,
 ) {
   const steps = 24;
   const deviation = Math.min(2.0, Math.min(rx, ry) * 0.06 || 1);
@@ -76,7 +76,7 @@ export function drawWobblyEllipse(
 export function renderElement(
   ctx: CanvasRenderingContext2D,
   element: CanvasElement,
-  roughMode: boolean = true
+  roughMode: boolean = true,
 ) {
   ctx.save();
 
@@ -208,7 +208,12 @@ export function renderElement(
         // Draw quadratic curves between points for smooth stroke
         const xc = (element.points[i].x + element.points[i - 1].x) / 2;
         const yc = (element.points[i].y + element.points[i - 1].y) / 2;
-        ctx.quadraticCurveTo(element.points[i - 1].x, element.points[i - 1].y, xc, yc);
+        ctx.quadraticCurveTo(
+          element.points[i - 1].x,
+          element.points[i - 1].y,
+          xc,
+          yc,
+        );
       }
 
       ctx.stroke();

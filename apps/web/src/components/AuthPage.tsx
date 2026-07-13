@@ -38,7 +38,9 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
           router.push("/");
           router.refresh();
         } else {
-          setError(response.data?.message || "Invalid credentials. Please try again.");
+          setError(
+            response.data?.message || "Invalid credentials. Please try again.",
+          );
         }
       } else {
         // Sign Up Request
@@ -59,7 +61,8 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
     } catch (err: any) {
       console.error(err);
       setError(
-        err.response?.data?.message || "An unexpected error occurred. Please try again."
+        err.response?.data?.message ||
+          "An unexpected error occurred. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -97,12 +100,17 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             {isSignin ? "Welcome back" : "Create an account"}
           </h2>
           <p className="mt-2 text-sm text-[#706B5F]">
-            {isSignin ? "Enter your credentials to access your canvas" : "Start scrawling your messy middle process"}
+            {isSignin
+              ? "Enter your credentials to access your canvas"
+              : "Start scrawling your messy middle process"}
           </p>
         </div>
 
         {error && (
-          <div className="bg-[#FDF3F2] border border-[#F5C7C1] text-[#C24E3D] px-4 py-3 rounded-lg text-sm relative" role="alert">
+          <div
+            className="bg-[#FDF3F2] border border-[#F5C7C1] text-[#C24E3D] px-4 py-3 rounded-lg text-sm relative"
+            role="alert"
+          >
             <span className="block sm:inline">{error}</span>
           </div>
         )}
@@ -174,7 +182,9 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             onClick={() => router.push(isSignin ? "/signup" : "/signin")}
             className="text-sm font-medium text-[#D95F4D] hover:text-[#C24E3D] hover:cursor-pointer transition-colors"
           >
-            {isSignin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            {isSignin
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
           </button>
         </div>
       </div>

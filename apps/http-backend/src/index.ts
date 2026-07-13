@@ -12,30 +12,35 @@ const ALLOWED_ORIGINS = [
 ];
 
 app.use((req, res, next) => {
-    const origin = req.headers.origin as string;
-    const isAllowed =
-        origin && (
-            origin === "http://localhost:3000" ||
-            origin.endsWith(".raghunandan.dev") ||
-            ALLOWED_ORIGINS.includes(origin)
-        );
-    if (isAllowed) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
-    }
-    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, token");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    if (req.method === "OPTIONS") {
-        res.sendStatus(200);
-        return;
-    }
-    next();
+  const origin = req.headers.origin as string;
+  const isAllowed =
+    origin &&
+    (origin === "http://localhost:3000" ||
+      origin.endsWith(".raghunandan.dev") ||
+      ALLOWED_ORIGINS.includes(origin));
+  if (isAllowed) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, token",
+  );
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS",
+  );
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+    return;
+  }
+  next();
 });
 
 app.get("/", (req, res) => {
-    res.json({
-        message: "healthy"
-    })
-})
+  res.json({
+    message: "healthy",
+  });
+});
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/room", roomRouter);
@@ -43,16 +48,21 @@ app.use("/api/v1/chats", chatsRouter);
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
-    console.log(`http-backend listening on ${PORT}`);
+  console.log(`http-backend listening on ${PORT}`);
 
-    // Self-ping keeping Render Free Tier awake
-    const selfUrl = process.env.RENDER_EXTERNAL_URL;
-    if (selfUrl) {
-        console.log(`Self-ping keep-alive registered for: ${selfUrl}`);
-        setInterval(() => {
-            fetch(selfUrl)
-                .then((res) => console.log(`Self-ping successful: status ${res.status}`))
-                .catch((err) => console.error("Self-ping failed:", err));
-        }, 10 * 60 * 1000); // every 10 minutes
-    }
+  // Self-ping keeping Render Free Tier awake
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (selfUrl) {
+    console.log(`Self-ping keep-alive registered for: ${selfUrl}`);
+    setInterval(
+      () => {
+        fetch(selfUrl)
+          .then((res) =>
+            console.log(`Self-ping successful: status ${res.status}`),
+          )
+          .catch((err) => console.error("Self-ping failed:", err));
+      },
+      10 * 60 * 1000,
+    ); // every 10 minutes
+  }
 });

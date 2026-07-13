@@ -1977,7 +1977,7 @@ export function Canvas({
                   key={w}
                   variant={strokeWidth === w ? "active" : "secondary"}
                   size="sm"
-                  className="flex-1 text-[10px] h-6.5"
+                  className="flex-1 text-[10px] h-6.5 !px-0"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeWidth(w);
@@ -2000,7 +2000,7 @@ export function Canvas({
                   key={style}
                   variant={strokeStyle === style ? "active" : "secondary"}
                   size="sm"
-                  className="flex-1 text-[10px] h-6.5 capitalize"
+                  className="flex-1 text-[10px] h-6.5 capitalize !px-1"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeStyle(style);

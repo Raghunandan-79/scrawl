@@ -312,6 +312,32 @@ export function renderElement(
       break;
     }
 
+    case "eraser": {
+      if (!element.points || element.points.length < 2) return;
+      ctx.save();
+      ctx.strokeStyle = "rgba(245, 199, 193, 0.5)"; // Soft pink rubber eraser trail
+      ctx.lineWidth = 18;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.setLineDash([]);
+      
+      ctx.beginPath();
+      ctx.moveTo(element.points[0].x, element.points[0].y);
+      for (let i = 1; i < element.points.length; i++) {
+        const xc = (element.points[i].x + element.points[i - 1].x) / 2;
+        const yc = (element.points[i].y + element.points[i - 1].y) / 2;
+        ctx.quadraticCurveTo(
+          element.points[i - 1].x,
+          element.points[i - 1].y,
+          xc,
+          yc,
+        );
+      }
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+
     case "text": {
       if (!element.text) return;
       // Use clean fonts (serif/sans/mono) depending on style

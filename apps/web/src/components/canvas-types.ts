@@ -27,7 +27,8 @@ export interface CanvasElement {
     | "arrow"
     | "pencil"
     | "text"
-    | "image";
+    | "image"
+    | "eraser";
   x: number;
   y: number;
   width: number;

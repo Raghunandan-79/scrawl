@@ -964,6 +964,23 @@ export function Canvas({
         setMyElements((prev) => prev.filter((id) => id !== clickedEl.id));
         broadcastAction({ type: "delete", elementId: clickedEl.id });
       }
+
+      // Initialize eraser trail
+      const newId = `eraser-${Date.now()}`;
+      const newElement: CanvasElement = {
+        id: newId,
+        type: "eraser",
+        x: mousePos.x,
+        y: mousePos.y,
+        width: 0,
+        height: 0,
+        strokeColor: "rgba(245, 199, 193, 0.5)",
+        fillColor: "transparent",
+        strokeWidth: 18,
+        strokeStyle: "solid",
+        points: [mousePos],
+      };
+      setActiveElement(newElement);
       return;
     }
 
@@ -1055,6 +1072,15 @@ export function Canvas({
         setMyElements((prev) => prev.filter((id) => id !== clickedEl.id));
         broadcastAction({ type: "delete", elementId: clickedEl.id });
       }
+
+      // Update eraser trail points
+      setActiveElement((prev) => {
+        if (!prev || prev.type !== "eraser") return prev;
+        return {
+          ...prev,
+          points: [...(prev.points || []), mouseWorldPos],
+        };
+      });
       return;
     }
 
@@ -1269,18 +1295,22 @@ export function Canvas({
     setResizeHandle(null);
 
     if (activeElement) {
-      // Validate element has size
-      const hasSize =
-        activeElement.type === "pencil" ||
-        Math.abs(activeElement.width) > 2 ||
-        Math.abs(activeElement.height) > 2;
+      if (activeElement.type === "eraser") {
+        setActiveElement(null);
+      } else {
+        // Validate element has size
+        const hasSize =
+          activeElement.type === "pencil" ||
+          Math.abs(activeElement.width) > 2 ||
+          Math.abs(activeElement.height) > 2;
 
-      if (hasSize) {
-        setElements((prev) => [...prev, activeElement]);
-        setMyElements((prev) => [...prev, activeElement.id]);
-        broadcastAction({ type: "add", element: activeElement });
+        if (hasSize) {
+          setElements((prev) => [...prev, activeElement]);
+          setMyElements((prev) => [...prev, activeElement.id]);
+          broadcastAction({ type: "add", element: activeElement });
+        }
+        setActiveElement(null);
       }
-      setActiveElement(null);
     }
 
     if (tool === "select" && selectedElementId) {

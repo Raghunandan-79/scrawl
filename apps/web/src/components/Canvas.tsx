@@ -913,6 +913,19 @@ export function Canvas({
             }, 50);
             lastTapRef.current = null;
             return;
+          } else {
+            setTextInput({
+              x: mouseX,
+              y: mouseY,
+              text: "",
+            });
+            setSelectedElementId(null);
+            setIsDrawing(false);
+            setTimeout(() => {
+              textInputRef.current?.focus();
+            }, 50);
+            lastTapRef.current = null;
+            return;
           }
         }
       }

@@ -17,6 +17,8 @@ Scrawl is a lightweight, high-performance, real-time collaborative digital white
 - **High-DPI Razor-Sharp Rendering**: Automatic pixel density adjustment (`devicePixelRatio`) to keep drawings crisp on Retina screens and iPads.
 - **History Control**: Fully functional Undo, Redo, and Clear options synced across all connected clients.
 - **Local PNG Export**: Download canvas creations instantly.
+- **SEO-Optimized Server Landing Page**: Next.js Server Component architecture for the main root layout (`/`), exporting static SEO metadata tags while modularizing dynamic/stateful logic inside interactive client modules.
+- **Eye-Soothing Colors**: Solid but muted color palette (Charcoal, Slate Gray, Ruby Red, Ocean Blue, Forest Green, Terracotta Orange, Plum Purple, and Rose Pink) built to minimize eye strain during long whiteboard sessions.
 
 ---
 

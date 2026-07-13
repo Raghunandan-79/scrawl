@@ -1683,17 +1683,21 @@ export function Canvas({
     const lastId = newMyElements.pop();
     if (!lastId) return;
 
-    setMyElements(newMyElements);
-    setElements((prev) => {
-      const itemToDelete = prev.find((e) => e.id === lastId);
-      if (itemToDelete) {
-        centerOnElement(itemToDelete);
-        setRedoStack((r) => [...r, [itemToDelete]]);
+    const itemToDelete = elements.find((e) => e.id === lastId);
+    if (itemToDelete) {
+      setRedoStack((r) => [...r, [itemToDelete]]);
+      
+      // Center on the remaining last element on canvas (if any exists)
+      const remainingElements = elements.filter((e) => e.id !== lastId);
+      if (remainingElements.length > 0) {
+        const nextLastElement = remainingElements[remainingElements.length - 1];
+        centerOnElement(nextLastElement);
       }
-      const next = prev.filter((e) => e.id !== lastId);
-      broadcastAction({ type: "delete", elementId: lastId });
-      return next;
-    });
+    }
+
+    setMyElements(newMyElements);
+    setElements((prev) => prev.filter((e) => e.id !== lastId));
+    broadcastAction({ type: "delete", elementId: lastId });
   };
 
   const handleRedo = () => {

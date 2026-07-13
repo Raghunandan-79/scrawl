@@ -55,7 +55,7 @@ export function Canvas({
   const [tool, setTool] = useState<Tool>(isReadOnly ? "hand" : "rect");
 
   // Style Options
-  const [strokeColor, setStrokeColor] = useState("#000000");
+  const [strokeColor, setStrokeColor] = useState("#1E1E1E");
   const [fillColor, setFillColor] = useState("transparent");
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [strokeStyle, setStrokeStyle] = useState<"solid" | "dashed">("solid");
@@ -1517,7 +1517,7 @@ export function Canvas({
         y: worldY - displayHeight / 2,
         width: displayWidth,
         height: displayHeight,
-        strokeColor: "#000000",
+        strokeColor: "#1E1E1E",
         fillColor: "transparent",
         strokeWidth: 1,
         strokeStyle: "solid",
@@ -1893,14 +1893,14 @@ export function Canvas({
             </h4>
             <div className="grid grid-cols-5 gap-1">
               {[
-                "#000000", // black
-                "#808080", // gray
-                "#FF0000", // red
-                "#0000FF", // blue
-                "#00FF00", // green
-                "#FF6600", // orange
-                "#9900FF", // purple
-                "#FF00FF", // pink
+                "#1E1E1E", // black
+                "#706B5F", // gray
+                "#E03131", // red
+                "#1971C2", // blue
+                "#2F9E44", // green
+                "#E8590C", // orange
+                "#9C36B5", // purple
+                "#D6336C", // pink
               ].map((col) => (
                 <button
                   key={col}
@@ -1931,12 +1931,12 @@ export function Canvas({
               {[
                 "transparent",
                 "#FFFFFF", // white
-                "#FF0000", // red
-                "#0000FF", // blue
-                "#00FF00", // green
-                "#FF6600", // orange
-                "#9900FF", // purple
-                "#FF00FF", // pink
+                "#E03131", // red
+                "#1971C2", // blue
+                "#2F9E44", // green
+                "#E8590C", // orange
+                "#9C36B5", // purple
+                "#D6336C", // pink
               ].map((col) => (
                 <button
                   key={col}

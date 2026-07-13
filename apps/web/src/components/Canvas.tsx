@@ -25,10 +25,7 @@ import {
   Eraser,
   Home,
   Share2,
-  Play,
-  Pause,
 } from "lucide-react";
-import { FlowArrow } from "./FlowArrow";
 
 interface CanvasProps {
   roomId: string;
@@ -61,23 +58,6 @@ export function Canvas({
   const [strokeStyle, setStrokeStyle] = useState<"solid" | "dashed">("solid");
   const [roughMode, setRoughMode] = useState(true);
   const [showMobileStyles, setShowMobileStyles] = useState(false);
-
-  const [isAnimating, setIsAnimating] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("scrawl_animate_enabled");
-      return stored !== null ? stored === "true" : true;
-    }
-    return true;
-  });
-
-  const toggleAnimation = () => {
-    setIsAnimating((prev) => {
-      const next = !prev;
-      localStorage.setItem("scrawl_animate_enabled", String(next));
-      return next;
-    });
-  };
-
   // Viewport transforms
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
@@ -1235,21 +1215,6 @@ export function Canvas({
     setTextInput(null);
   };
 
-  const selectedElement = elements.find((e) => e.id === selectedElementId);
-
-  const toggleSelectedArrowAnimation = () => {
-    if (!selectedElementId) return;
-    setElements((prev) =>
-      prev.map((el) => {
-        if (el.id !== selectedElementId) return el;
-        const nextAnim = !el.animate;
-        const updated = { ...el, animate: nextAnim };
-        broadcastAction({ type: "update", element: updated });
-        return updated;
-      }),
-    );
-  };
-
   // Undo / Redo logic
   const handleUndo = () => {
     if (myElements.length === 0) return;
@@ -1329,17 +1294,6 @@ export function Canvas({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       />
-
-      {/* SVG Animation Overlay */}
-      <svg className="absolute inset-0 pointer-events-none w-full h-full z-[5]">
-        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-          {elements
-            .filter((el) => el.type === "arrow" && el.animate)
-            .map((el) => (
-              <FlowArrow key={el.id} element={el} isAnimating={isAnimating} />
-            ))}
-        </g>
-      </svg>
 
       {/* Floating text edit area */}
       {textInput && (
@@ -1567,49 +1521,11 @@ export function Canvas({
               {roughMode ? "Rough Wobble: ON" : "Perfect Vector: ON"}
             </Button>
           </div>
-
-          {selectedElement && selectedElement.type === "arrow" && (
-            <div>
-              <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
-                Arrow Animation
-              </h4>
-              <Button
-                variant={selectedElement.animate ? "active" : "secondary"}
-                size="sm"
-                className="w-full flex items-center justify-center gap-2 text-xs"
-                onClick={toggleSelectedArrowAnimation}
-              >
-                {selectedElement.animate ? (
-                  <>
-                    <Pause className="h-3 w-3 text-[#D95F4D]" />
-                    Animate Flow: ON
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3 w-3 text-[#A19D94]" />
-                    Animate Flow: OFF
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
         </div>
       )}
 
       {/* Control Actions - Floating right top */}
       <div className="absolute top-6 right-6 z-10 flex gap-2">
-        <Button
-          variant={isAnimating ? "active" : "secondary"}
-          size="icon"
-          onClick={toggleAnimation}
-          title={isAnimating ? "Pause animations" : "Play animations"}
-        >
-          {isAnimating ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-        </Button>
         {!isReadOnly && (
           <>
             <Button

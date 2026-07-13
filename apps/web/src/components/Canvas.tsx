@@ -25,6 +25,8 @@ import {
   Eraser,
   Home,
   Share2,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 interface CanvasProps {
@@ -61,6 +63,16 @@ export function Canvas({
   // Viewport transforms
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+  const isCanvasLockedRef = useRef(isCanvasLocked);
+
+  useEffect(() => {
+    isCanvasLockedRef.current = isCanvasLocked;
+    if (isCanvasLocked) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    }
+  }, [isCanvasLocked]);
 
   // Collaborator cursors state
   const [collaboratorCursors, setCollaboratorCursors] = useState<
@@ -685,6 +697,7 @@ export function Canvas({
     if (!canvas) return;
 
     const handleWheel = (e: WheelEvent) => {
+      if (isCanvasLockedRef.current) return;
       e.preventDefault();
       if (e.ctrlKey) {
         // Zoom
@@ -785,7 +798,7 @@ export function Canvas({
     }
 
     if (isReadOnly) {
-      if (tool === "hand") {
+      if (tool === "hand" && !isCanvasLocked) {
         setIsDrawing(true);
         setStartPoint({ x: clientX, y: clientY });
       }
@@ -818,6 +831,7 @@ export function Canvas({
     }
 
     if (tool === "hand") {
+      if (isCanvasLocked) return;
       setStartPoint({ x: clientX, y: clientY });
       return;
     }
@@ -1078,6 +1092,7 @@ export function Canvas({
     if (!isDrawing) return;
 
     if (tool === "hand") {
+      if (isCanvasLocked) return;
       const dx = clientX - startPoint.x;
       const dy = clientY - startPoint.y;
       setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -1170,6 +1185,7 @@ export function Canvas({
       if (e.touches.length === 2) {
         setIsDrawing(false);
         setActiveElement(null);
+        if (isCanvasLockedRef.current) return;
         isPinching.current = true;
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
@@ -1794,6 +1810,7 @@ export function Canvas({
           size="icon"
           onClick={() => adjustZoom(0.8)}
           className="h-8 w-8"
+          disabled={isCanvasLocked}
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
@@ -1805,6 +1822,7 @@ export function Canvas({
           size="icon"
           onClick={() => adjustZoom(1.2)}
           className="h-8 w-8"
+          disabled={isCanvasLocked}
         >
           <ZoomIn className="h-4 w-4" />
         </Button>
@@ -1816,8 +1834,27 @@ export function Canvas({
             setZoom(1);
             setPan({ x: 0, y: 0 });
           }}
+          disabled={isCanvasLocked}
         >
           Reset
+        </Button>
+        <div className="w-px h-4 bg-[#E5E0D8]" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsCanvasLocked(!isCanvasLocked)}
+          className={`h-8 w-8 transition-colors ${
+            isCanvasLocked ? "text-[#D95F4D]" : "text-[#706B5F]"
+          }`}
+          title={
+            isCanvasLocked ? "Unlock infinite canvas" : "Lock infinite canvas"
+          }
+        >
+          {isCanvasLocked ? (
+            <Lock className="h-4 w-4" />
+          ) : (
+            <Unlock className="h-4 w-4" />
+          )}
         </Button>
       </div>
 

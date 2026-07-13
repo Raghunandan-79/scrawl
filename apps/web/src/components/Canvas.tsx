@@ -1542,6 +1542,7 @@ export function Canvas({
                       : "border-[#E5E0D8]"
                   }`}
                   style={{ backgroundColor: col }}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeColor(col);
                     updateSelectedElementStyle({ strokeColor: col });
@@ -1575,6 +1576,7 @@ export function Canvas({
                   style={{
                     backgroundColor: col === "transparent" ? "white" : col,
                   }}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setFillColor(col);
                     updateSelectedElementStyle({ fillColor: col });
@@ -1601,6 +1603,7 @@ export function Canvas({
                   variant={strokeWidth === w ? "active" : "secondary"}
                   size="sm"
                   className="flex-1 text-xs"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeWidth(w);
                     updateSelectedElementStyle({ strokeWidth: w });
@@ -1623,6 +1626,7 @@ export function Canvas({
                   variant={strokeStyle === style ? "active" : "secondary"}
                   size="sm"
                   className="flex-1 text-xs capitalize"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setStrokeStyle(style);
                     updateSelectedElementStyle({ strokeStyle: style });
@@ -1642,6 +1646,7 @@ export function Canvas({
               variant={roughMode ? "active" : "secondary"}
               size="sm"
               className="w-full flex items-center justify-center gap-2 text-xs"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setRoughMode(!roughMode)}
             >
               <Sparkles className="h-3 w-3 text-[#D95F4D]" />

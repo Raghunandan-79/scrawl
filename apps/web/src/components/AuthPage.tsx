@@ -70,36 +70,36 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5] px-4 py-12 sm:px-6 lg:px-8 font-sans relative">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5] px-4 py-8 sm:px-6 lg:px-8 font-sans relative">
       {/* Back to Home Button - Floating Top Left */}
-      <div className="absolute top-6 left-6">
+      <div className="absolute top-4 left-4">
         <Button
           variant="secondary"
           onClick={() => router.push("/")}
-          className="flex items-center gap-1.5 font-mono text-xs shadow-sm bg-white"
+          className="flex items-center gap-1.5 font-mono text-[10px] py-1.5 px-3 shadow-sm bg-white"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">BACK TO HOME</span>
           <span className="sm:hidden">HOME</span>
         </Button>
       </div>
-      <div className="max-w-md w-full space-y-8 bg-white border border-[#E5E0D8] p-8 rounded-xl shadow-[0_4px_24px_rgba(229,224,216,0.25)] relative overflow-hidden">
+      <div className="max-w-xs sm:max-w-sm w-full space-y-5 bg-white border border-[#E5E0D8] p-6 rounded-xl shadow-[0_4px_24px_rgba(229,224,216,0.25)] relative overflow-hidden">
         {/* Monospace accent line at the top */}
         <div className="absolute top-0 left-0 w-full h-1 bg-[#D95F4D]"></div>
 
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <span className="h-6 w-6 bg-[#1E1E1E] rounded-md flex items-center justify-center text-white font-mono text-xs font-bold">
+          <div className="inline-flex items-center gap-1.5 mb-1.5">
+            <span className="h-5 w-5 bg-[#1E1E1E] rounded-md flex items-center justify-center text-white font-mono text-[10px] font-bold">
               S
             </span>
-            <span className="font-mono text-xs font-semibold tracking-widest text-[#A19D94]">
+            <span className="font-mono text-[10px] font-semibold tracking-widest text-[#A19D94]">
               SCRAWL
             </span>
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-[#1E1E1E]">
+          <h2 className="text-[22px] font-bold tracking-tight text-[#1E1E1E]">
             {isSignin ? "Welcome back" : "Create an account"}
           </h2>
-          <p className="mt-2 text-sm text-[#706B5F]">
+          <p className="mt-1.5 text-xs text-[#706B5F]">
             {isSignin
               ? "Enter your credentials to access your canvas"
               : "Start scrawling your messy middle process"}
@@ -108,15 +108,15 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
 
         {error && (
           <div
-            className="bg-[#FDF3F2] border border-[#F5C7C1] text-[#C24E3D] px-4 py-3 rounded-lg text-sm relative"
+            className="bg-[#FDF3F2] border border-[#F5C7C1] text-[#C24E3D] px-3.5 py-2.5 rounded-lg text-xs relative"
             role="alert"
           >
             <span className="block sm:inline">{error}</span>
           </div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+        <form className="mt-6 space-y-4.5" onSubmit={handleSubmit}>
+          <div className="space-y-3.5">
             {!isSignin && (
               <>
                 <Input
@@ -128,6 +128,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                   placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  className="!h-8.5 !text-xs !py-1"
                 />
                 <Input
                   label="Email Address"
@@ -138,6 +139,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="!h-8.5 !text-xs !py-1"
                 />
               </>
             )}
@@ -151,6 +153,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               placeholder="johndoe"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              className="!h-8.5 !text-xs !py-1"
             />
 
             <Input
@@ -162,6 +165,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="!h-8.5 !text-xs !py-1"
             />
           </div>
 
@@ -169,7 +173,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             <Button
               type="submit"
               variant="primary"
-              className="w-full py-2.5"
+              className="w-full py-2 text-xs"
               isLoading={loading}
             >
               {isSignin ? "Sign in" : "Sign up"}
@@ -177,10 +181,10 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
           </div>
         </form>
 
-        <div className="text-center mt-4">
+        <div className="text-center mt-3">
           <button
             onClick={() => router.push(isSignin ? "/signup" : "/signin")}
-            className="text-sm font-medium text-[#D95F4D] hover:text-[#C24E3D] hover:cursor-pointer transition-colors"
+            className="text-xs font-semibold text-[#D95F4D] hover:text-[#C24E3D] hover:cursor-pointer transition-colors"
           >
             {isSignin
               ? "Don't have an account? Sign up"

@@ -82,6 +82,8 @@ export function Canvas({
     text: string;
   } | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastTouchTime = useRef<number>(0);
+  const lastTouchPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Selection state
   const [selectedElementId, setSelectedElementId] = useState<string | null>(
@@ -1062,6 +1064,23 @@ export function Canvas({
     handleEnd();
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left - pan.x) / zoom;
+    const y = (e.clientY - rect.top - pan.y) / zoom;
+
+    setTool("text");
+    setSelectedElementId(null);
+    setTextInput({ x, y, text: "" });
+    setIsDrawing(false);
+    setActiveElement(null);
+    setTimeout(() => {
+      textInputRef.current?.focus();
+    }, 50);
+  };
+
   // Manual non-passive touch event listeners for preventing browser scrolling while drawing
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1083,10 +1102,42 @@ export function Canvas({
       }
 
       if (e.touches.length === 1 && !isPinching.current) {
+        const touch = e.touches[0];
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastTouchTime.current;
+        const dist = Math.hypot(
+          touch.clientX - lastTouchPos.current.x,
+          touch.clientY - lastTouchPos.current.y,
+        );
+
+        if (timeDiff < 300 && dist < 15) {
+          if (e.cancelable) e.preventDefault();
+          const rect = canvas.getBoundingClientRect();
+          const x =
+            (touch.clientX - rect.left - panRef.current.x) / zoomRef.current;
+          const y =
+            (touch.clientY - rect.top - panRef.current.y) / zoomRef.current;
+
+          setTool("text");
+          setSelectedElementId(null);
+          setTextInput({ x, y, text: "" });
+          setIsDrawing(false);
+          setActiveElement(null);
+
+          setTimeout(() => {
+            textInputRef.current?.focus();
+          }, 50);
+
+          lastTouchTime.current = 0;
+          return;
+        }
+
+        lastTouchTime.current = currentTime;
+        lastTouchPos.current = { x: touch.clientX, y: touch.clientY };
+
         if (toolRef.current !== "hand" && toolRef.current !== "select") {
           if (e.cancelable) e.preventDefault();
         }
-        const touch = e.touches[0];
         handleStart(touch.clientX, touch.clientY);
       }
     };
@@ -1293,6 +1344,7 @@ export function Canvas({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
       />
 
       {/* Floating text edit area */}

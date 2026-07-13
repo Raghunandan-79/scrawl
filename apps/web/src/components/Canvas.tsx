@@ -111,8 +111,6 @@ export function Canvas({
     text: string;
   } | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const lastTouchTime = useRef<number>(0);
-  const lastTouchPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Selection state
   const [selectedElementId, setSelectedElementId] = useState<string | null>(
@@ -1218,36 +1216,6 @@ export function Canvas({
     handleEnd();
   };
 
-  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    let mouseX = e.clientX - rect.left;
-    let mouseY = e.clientY - rect.top;
-
-    if (lockedSize) {
-      const pageW = lockedSize.width;
-      const pageH = lockedSize.height;
-      mouseX = Math.max(0, Math.min(pageW, mouseX));
-      mouseY = Math.max(0, Math.min(pageH, mouseY));
-    } else {
-      mouseX = (mouseX - pan.x) / zoom;
-      mouseY = (mouseY - pan.y) / zoom;
-    }
-
-    const x = mouseX;
-    const y = mouseY;
-
-    setTool("text");
-    setSelectedElementId(null);
-    setTextInput({ x, y, text: "" });
-    setIsDrawing(false);
-    setActiveElement(null);
-    setTimeout(() => {
-      textInputRef.current?.focus();
-    }, 50);
-  };
-
   // Global mouseup listener to catch releases outside the canvas boundaries
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -1282,49 +1250,6 @@ export function Canvas({
 
       if (e.touches.length === 1 && !isPinching.current) {
         const touch = e.touches[0];
-        const currentTime = Date.now();
-        const timeDiff = currentTime - lastTouchTime.current;
-        const dist = Math.hypot(
-          touch.clientX - lastTouchPos.current.x,
-          touch.clientY - lastTouchPos.current.y,
-        );
-
-        if (timeDiff < 300 && dist < 15) {
-          if (e.cancelable) e.preventDefault();
-          const rect = canvas.getBoundingClientRect();
-          let mouseX = touch.clientX - rect.left;
-          let mouseY = touch.clientY - rect.top;
-
-          if (isCanvasLockedRef.current && lockedSizeRef.current) {
-            const pageW = lockedSizeRef.current.width;
-            const pageH = lockedSizeRef.current.height;
-            mouseX = Math.max(0, Math.min(pageW, mouseX));
-            mouseY = Math.max(0, Math.min(pageH, mouseY));
-          } else {
-            mouseX = (mouseX - panRef.current.x) / zoomRef.current;
-            mouseY = (mouseY - panRef.current.y) / zoomRef.current;
-          }
-
-          const x = mouseX;
-          const y = mouseY;
-
-          setTool("text");
-          setSelectedElementId(null);
-          setTextInput({ x, y, text: "" });
-          setIsDrawing(false);
-          setActiveElement(null);
-
-          setTimeout(() => {
-            textInputRef.current?.focus();
-          }, 50);
-
-          lastTouchTime.current = 0;
-          return;
-        }
-
-        lastTouchTime.current = currentTime;
-        lastTouchPos.current = { x: touch.clientX, y: touch.clientY };
-
         if (toolRef.current !== "hand" && toolRef.current !== "select") {
           if (e.cancelable) e.preventDefault();
         }
@@ -1576,7 +1501,6 @@ export function Canvas({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onDoubleClick={handleDoubleClick}
       />
 
       {/* Floating text edit area */}

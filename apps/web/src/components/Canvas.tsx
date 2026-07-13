@@ -1244,7 +1244,7 @@ export function Canvas({
     }
 
     const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const fontSize = strokeWidth * 6;
+    const fontSize = strokeWidth * 12;
     const lines = textInput.text.split("\n");
 
     // Estimate width & height
@@ -1281,7 +1281,7 @@ export function Canvas({
 
           if (el.type === "text" && updates.strokeWidth !== undefined) {
             const lines = el.text ? el.text.split("\n") : [""];
-            const fontSize = updates.strokeWidth * 6;
+            const fontSize = updates.strokeWidth * 12;
             const lineHeight = fontSize * 1.25;
             const longestLine = lines.reduce(
               (longest, line) =>
@@ -1410,12 +1410,27 @@ export function Canvas({
           <textarea
             ref={textInputRef}
             className="bg-transparent border border-[#FAF8F5] outline-none text-[#1E1E1E] font-mono resize-none p-1"
+            wrap="off"
             style={{
-              fontSize: `${strokeWidth * 6 * zoom}px`,
+              fontSize: `${strokeWidth * 12 * zoom}px`,
               lineHeight: 1.25,
               color: strokeColor,
-              width: "250px",
-              height: "100px",
+              width: `${Math.max(
+                250,
+                textInput.text
+                  .split("\n")
+                  .reduce((max, line) => Math.max(max, line.length), 0) *
+                  (strokeWidth * 12 * 0.6) *
+                  zoom +
+                  30,
+              )}px`,
+              height: `${Math.max(
+                100,
+                textInput.text.split("\n").length *
+                  (strokeWidth * 12 * 1.25) *
+                  zoom +
+                  30,
+              )}px`,
             }}
             value={textInput.text}
             onChange={(e) =>

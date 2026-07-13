@@ -242,14 +242,14 @@ export function renderElement(
     case "text": {
       if (!element.text) return;
       // Use clean fonts (serif/sans/mono) depending on style
-      const sizeStr = `${Math.max(12, element.strokeWidth * 6)}px`;
+      const sizeStr = `${Math.max(12, element.strokeWidth * 12)}px`;
       ctx.font = `500 ${sizeStr} Geist Mono, var(--font-geist-mono), monospace`;
       ctx.fillStyle = element.strokeColor;
       ctx.textBaseline = "top";
 
       // Split text by lines to support multi-line text input
       const lines = element.text.split("\n");
-      const lineHeight = Math.max(12, element.strokeWidth * 6) * 1.25;
+      const lineHeight = Math.max(12, element.strokeWidth * 12) * 1.25;
       lines.forEach((line, idx) => {
         ctx.fillText(line, element.x, element.y + idx * lineHeight);
       });

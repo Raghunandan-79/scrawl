@@ -1,5 +1,19 @@
 import { CanvasElement } from "./canvas-types";
 
+// Seeded random number generator to make rough mode drawings stable across frames
+function createSeededRandom(seedString: string) {
+  let h = 0;
+  for (let i = 0; i < seedString.length; i++) {
+    h = (Math.imul(31, h) + seedString.charCodeAt(i)) | 0;
+  }
+  return function () {
+    let t = (h += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Helper to draw wobbly sketch-like line
 export function drawWobblyLine(
   ctx: CanvasRenderingContext2D,
@@ -7,6 +21,7 @@ export function drawWobblyLine(
   y1: number,
   x2: number,
   y2: number,
+  random: () => number = Math.random,
 ) {
   const length = Math.hypot(x2 - x1, y2 - y1);
   if (length < 1) return;
@@ -25,15 +40,15 @@ export function drawWobblyLine(
     const ny = dx / length;
 
     // Add wobbly curve
-    const dev = (Math.random() - 0.5) * deviation + offset;
+    const dev = (random() - 0.5) * deviation + offset;
     const cx = mx + nx * dev;
     const cy = my + ny * dev;
 
     ctx.quadraticCurveTo(
       cx,
       cy,
-      x2 + (Math.random() - 0.5) * offset * 0.3,
-      y2 + (Math.random() - 0.5) * offset * 0.3,
+      x2 + (random() - 0.5) * offset * 0.3,
+      y2 + (random() - 0.5) * offset * 0.3,
     );
     ctx.stroke();
   };
@@ -49,6 +64,7 @@ export function drawWobblyEllipse(
   cy: number,
   rx: number,
   ry: number,
+  random: () => number = Math.random,
 ) {
   const steps = 24;
   const deviation = Math.min(2.0, Math.min(rx, ry) * 0.06 || 1);
@@ -57,7 +73,7 @@ export function drawWobblyEllipse(
     ctx.beginPath();
     for (let i = 0; i <= steps; i++) {
       const angle = (i / steps) * Math.PI * 2;
-      const dev = (Math.random() - 0.5) * deviation + offset;
+      const dev = (random() - 0.5) * deviation + offset;
       const x = cx + (rx + dev) * Math.cos(angle);
       const y = cy + (ry + dev) * Math.sin(angle);
       if (i === 0) {
@@ -78,6 +94,9 @@ export function renderElement(
   element: CanvasElement,
   roughMode: boolean = true,
 ) {
+  const seedString = element.id || `${element.x}-${element.y}`;
+  const random = createSeededRandom(seedString);
+
   ctx.save();
 
   // Setup styles
@@ -117,10 +136,10 @@ export function renderElement(
         const y1 = element.y;
         const x2 = element.x + element.width;
         const y2 = element.y + element.height;
-        drawWobblyLine(ctx, x1, y1, x2, y1);
-        drawWobblyLine(ctx, x2, y1, x2, y2);
-        drawWobblyLine(ctx, x2, y2, x1, y2);
-        drawWobblyLine(ctx, x1, y2, x1, y1);
+        drawWobblyLine(ctx, x1, y1, x2, y1, random);
+        drawWobblyLine(ctx, x2, y1, x2, y2, random);
+        drawWobblyLine(ctx, x2, y2, x1, y2, random);
+        drawWobblyLine(ctx, x1, y2, x1, y1, random);
       } else {
         ctx.beginPath();
         ctx.rect(element.x, element.y, element.width, element.height);
@@ -136,7 +155,7 @@ export function renderElement(
       const ry = Math.abs(element.height / 2);
 
       if (roughMode && rx > 2 && ry > 2) {
-        drawWobblyEllipse(ctx, cx, cy, rx, ry);
+        drawWobblyEllipse(ctx, cx, cy, rx, ry, random);
       } else {
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
@@ -152,7 +171,7 @@ export function renderElement(
       const y2 = element.y + element.height;
 
       if (roughMode) {
-        drawWobblyLine(ctx, x1, y1, x2, y2);
+        drawWobblyLine(ctx, x1, y1, x2, y2, random);
       } else {
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -169,7 +188,7 @@ export function renderElement(
       const y2 = element.y + element.height;
 
       if (roughMode) {
-        drawWobblyLine(ctx, x1, y1, x2, y2);
+        drawWobblyLine(ctx, x1, y1, x2, y2, random);
       } else {
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -186,8 +205,8 @@ export function renderElement(
       const yHead2 = y2 - headLen * Math.sin(angle + Math.PI / 6);
 
       if (roughMode) {
-        drawWobblyLine(ctx, x2, y2, xHead1, yHead1);
-        drawWobblyLine(ctx, x2, y2, xHead2, yHead2);
+        drawWobblyLine(ctx, x2, y2, xHead1, yHead1, random);
+        drawWobblyLine(ctx, x2, y2, xHead2, yHead2, random);
       } else {
         ctx.beginPath();
         ctx.moveTo(x2, y2);

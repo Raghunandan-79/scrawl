@@ -1235,6 +1235,21 @@ export function Canvas({
     setTextInput(null);
   };
 
+  const selectedElement = elements.find((e) => e.id === selectedElementId);
+
+  const toggleSelectedArrowAnimation = () => {
+    if (!selectedElementId) return;
+    setElements((prev) =>
+      prev.map((el) => {
+        if (el.id !== selectedElementId) return el;
+        const nextAnim = !el.animate;
+        const updated = { ...el, animate: nextAnim };
+        broadcastAction({ type: "update", element: updated });
+        return updated;
+      }),
+    );
+  };
+
   // Undo / Redo logic
   const handleUndo = () => {
     if (myElements.length === 0) return;
@@ -1319,7 +1334,7 @@ export function Canvas({
       <svg className="absolute inset-0 pointer-events-none w-full h-full z-[5]">
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
           {elements
-            .filter((el) => el.type === "arrow")
+            .filter((el) => el.type === "arrow" && el.animate)
             .map((el) => (
               <FlowArrow key={el.id} element={el} isAnimating={isAnimating} />
             ))}
@@ -1552,6 +1567,32 @@ export function Canvas({
               {roughMode ? "Rough Wobble: ON" : "Perfect Vector: ON"}
             </Button>
           </div>
+
+          {selectedElement && selectedElement.type === "arrow" && (
+            <div>
+              <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A19D94] mb-3">
+                Arrow Animation
+              </h4>
+              <Button
+                variant={selectedElement.animate ? "active" : "secondary"}
+                size="sm"
+                className="w-full flex items-center justify-center gap-2 text-xs"
+                onClick={toggleSelectedArrowAnimation}
+              >
+                {selectedElement.animate ? (
+                  <>
+                    <Pause className="h-3 w-3 text-[#D95F4D]" />
+                    Animate Flow: ON
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3 w-3 text-[#A19D94]" />
+                    Animate Flow: OFF
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

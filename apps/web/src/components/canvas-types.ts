@@ -27,6 +27,7 @@ export interface CanvasElement {
   fillColor: string;
   strokeWidth: number;
   strokeStyle: "solid" | "dashed";
+  animate?: boolean;
 }
 
 export type ActionType = "add" | "update" | "delete";

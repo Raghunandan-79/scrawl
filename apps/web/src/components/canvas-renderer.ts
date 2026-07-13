@@ -95,6 +95,7 @@ export function renderElement(
   ctx: CanvasRenderingContext2D,
   element: CanvasElement,
   roughMode: boolean = true,
+  zoom: number = 1,
   onImageLoaded?: () => void,
 ) {
   const seedString = element.id || `${element.x}-${element.y}`;
@@ -104,7 +105,9 @@ export function renderElement(
 
   // Setup styles
   ctx.strokeStyle = element.strokeColor;
-  ctx.lineWidth = element.strokeWidth;
+  // Ensure stroke width doesn't fall below a visible threshold in screen space when zoomed out
+  const minWidth = 1.2 / zoom;
+  ctx.lineWidth = Math.max(element.strokeWidth, minWidth);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 

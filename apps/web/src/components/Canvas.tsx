@@ -27,6 +27,7 @@ import {
   Share2,
   Lock,
   Unlock,
+  Locate,
 } from "lucide-react";
 
 interface CanvasProps {
@@ -148,10 +149,18 @@ export function Canvas({
   const startPointRef = useRef(startPoint);
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
+  const strokeColorRef = useRef(strokeColor);
+  const strokeWidthRef = useRef(strokeWidth);
 
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
+  useEffect(() => {
+    strokeColorRef.current = strokeColor;
+  }, [strokeColor]);
+  useEffect(() => {
+    strokeWidthRef.current = strokeWidth;
+  }, [strokeWidth]);
   useEffect(() => {
     activeElementRef.current = activeElement;
   }, [activeElement]);
@@ -613,14 +622,14 @@ export function Canvas({
 
     // Render stored elements
     elements.forEach((el) => {
-      renderElement(ctx, el, roughMode, () => {
+      renderElement(ctx, el, roughMode, zoom, () => {
         setRedrawTrigger((prev) => prev + 1);
       });
     });
 
     // Render active drawing element
     if (activeElement) {
-      renderElement(ctx, activeElement, roughMode, () => {
+      renderElement(ctx, activeElement, roughMode, zoom, () => {
         setRedrawTrigger((prev) => prev + 1);
       });
     }
@@ -1522,6 +1531,49 @@ export function Canvas({
     };
   };
 
+  const pasteTextAsElement = (text: string) => {
+    const canvasEl = canvasRef.current;
+    let worldX = 100;
+    let worldY = 100;
+    if (canvasEl) {
+      const rect = canvasEl.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      worldX = (centerX - panRef.current.x) / zoomRef.current;
+      worldY = (centerY - panRef.current.y) / zoomRef.current;
+    }
+
+    const lines = text.split("\n");
+    const fontSize = strokeWidthRef.current * 12;
+    const lineHeight = fontSize * 1.25;
+    const longestLine = lines.reduce(
+      (longest, line) => (line.length > longest.length ? line : longest),
+      "",
+    );
+    const estWidth = longestLine.length * (fontSize * 0.6) + 20;
+    const estHeight = lines.length * lineHeight + 20;
+
+    const newId = `text_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newElement: CanvasElement = {
+      id: newId,
+      type: "text",
+      x: worldX - estWidth / 2,
+      y: worldY - estHeight / 2,
+      width: estWidth,
+      height: estHeight,
+      text: text,
+      strokeColor: strokeColorRef.current,
+      fillColor: "transparent",
+      strokeWidth: strokeWidthRef.current,
+      strokeStyle: "solid",
+    };
+
+    setElements((prev) => [...prev, newElement]);
+    setMyElements((prev) => [...prev, newId]);
+    setSelectedElementId(newId);
+    broadcastAction({ type: "add", element: newElement });
+  };
+
   useEffect(() => {
     const handleCopy = (e: ClipboardEvent) => {
       if (
@@ -1581,10 +1633,14 @@ export function Canvas({
           if (parsed && parsed.type === "scrawl-element" && parsed.element) {
             e.preventDefault();
             pasteCanvasElement(parsed.element);
+            return;
           }
         } catch (err) {
-          // Ignore
+          // Ignore, fallback to pasteTextAsElement
         }
+
+        e.preventDefault();
+        pasteTextAsElement(text);
       }
     };
 
@@ -1595,6 +1651,28 @@ export function Canvas({
       window.removeEventListener("paste", handlePaste);
     };
   }, []);
+
+  const centerOnElement = (el: CanvasElement) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const screenCenterX = rect.width / 2;
+    const screenCenterY = rect.height / 2;
+    
+    const elCenterX = el.x + el.width / 2;
+    const elCenterY = el.y + el.height / 2;
+    
+    setPan({
+      x: screenCenterX - elCenterX * zoom,
+      y: screenCenterY - elCenterY * zoom,
+    });
+  };
+
+  const goToLastDrawnPlace = () => {
+    if (elements.length === 0) return;
+    const lastEl = elements[elements.length - 1];
+    centerOnElement(lastEl);
+  };
 
   // Undo / Redo logic
   const handleUndo = () => {
@@ -1609,6 +1687,7 @@ export function Canvas({
     setElements((prev) => {
       const itemToDelete = prev.find((e) => e.id === lastId);
       if (itemToDelete) {
+        centerOnElement(itemToDelete);
         setRedoStack((r) => [...r, [itemToDelete]]);
       }
       const next = prev.filter((e) => e.id !== lastId);
@@ -2034,6 +2113,17 @@ export function Canvas({
           disabled={isCanvasLocked}
         >
           Reset
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs px-2 h-8 font-semibold text-[#D95F4D] flex items-center gap-1"
+          onClick={goToLastDrawnPlace}
+          disabled={isCanvasLocked || elements.length === 0}
+          title="Pan to last drawn element"
+        >
+          <Locate className="h-3.5 w-3.5" />
+          Last Place
         </Button>
         <div className="w-px h-4 bg-[#E5E0D8]" />
         <Button

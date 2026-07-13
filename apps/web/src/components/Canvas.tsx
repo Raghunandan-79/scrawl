@@ -1122,6 +1122,10 @@ export function Canvas({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isDrawing && e.buttons === 0) {
+      handleEnd();
+      return;
+    }
     handleMove(e.clientX, e.clientY);
   };
 
@@ -1145,6 +1149,17 @@ export function Canvas({
       textInputRef.current?.focus();
     }, 50);
   };
+
+  // Global mouseup listener to catch releases outside the canvas boundaries
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDrawing) {
+        handleEnd();
+      }
+    };
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
+  }, [isDrawing, activeElement, selectedElementId, elements]);
 
   // Manual non-passive touch event listeners for preventing browser scrolling while drawing
   useEffect(() => {

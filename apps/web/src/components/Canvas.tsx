@@ -1829,7 +1829,8 @@ export function Canvas({
                 <Button
                   key={t.id}
                   variant={isActive ? "active" : "ghost"}
-                  className="relative group transition-all h-8 w-8 rounded-md p-0 flex items-center justify-center"
+                  size="icon"
+                  className="relative group transition-all h-8 w-8"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setTool(t.id as Tool);
@@ -1837,7 +1838,7 @@ export function Canvas({
                   }}
                   title={t.label}
                 >
-                  <IconComp className="h-3.5 w-3.5" />
+                  <IconComp className="h-4 w-4" />
                   <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
                     {t.label}
                   </span>
@@ -1851,20 +1852,22 @@ export function Canvas({
       <div className="absolute top-6 left-6 z-20 flex gap-2">
         <Button
           variant="secondary"
+          size="sm"
           onClick={() => router.push("/")}
-          className="flex items-center gap-1 font-mono text-[11px] h-8 px-2.5 shadow-sm bg-white"
+          className="flex items-center gap-1 font-mono text-[11px] h-8 bg-white"
         >
-          <Home className="h-3.5 w-3.5" />
+          <Home className="h-4 w-4" />
           <span className="hidden sm:inline">HOME</span>
         </Button>
 
         {!isReadOnly && (
           <Button
             variant={showMobileStyles ? "active" : "secondary"}
+            size="sm"
             onClick={() => setShowMobileStyles(!showMobileStyles)}
-            className="md:hidden flex items-center gap-1 shadow-sm font-mono text-[11px] h-8 px-2.5 bg-white"
+            className="md:hidden flex items-center gap-1 font-mono text-[11px] h-8 bg-white"
           >
-            <Sparkles className="h-3.5 w-3.5 text-[#D95F4D]" />
+            <Sparkles className="h-4 w-4 text-[#D95F4D]" />
             Styles
           </Button>
         )}
@@ -2034,55 +2037,60 @@ export function Canvas({
           <>
             <Button
               variant="secondary"
-              className="h-8 w-8 rounded-md p-0 flex items-center justify-center shadow-sm bg-white"
+              size="icon"
+              className="h-8 w-8 shadow-sm bg-white"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleUndo}
               disabled={myElements.length === 0}
               title="Undo last action (Ctrl+Z)"
             >
-              <Undo2 className="h-3.5 w-3.5" />
+              <Undo2 className="h-4 w-4" />
             </Button>
             <Button
               variant="secondary"
-              className="h-8 w-8 rounded-md p-0 flex items-center justify-center shadow-sm bg-white"
+              size="icon"
+              className="h-8 w-8 shadow-sm bg-white"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleRedo}
               disabled={redoStack.length === 0}
               title="Redo action (Ctrl+Y)"
             >
-              <Redo2 className="h-3.5 w-3.5" />
+              <Redo2 className="h-4 w-4" />
             </Button>
             <Button
               variant="secondary"
-              className="h-8 w-8 rounded-md p-0 flex items-center justify-center shadow-sm bg-white"
+              size="icon"
+              className="h-8 w-8 shadow-sm bg-white"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleClear}
               title="Clear canvas"
             >
-              <Trash2 className="h-3.5 w-3.5 text-[#D95F4D]" />
+              <Trash2 className="h-4 w-4 text-[#D95F4D]" />
             </Button>
           </>
         )}
         {roomId !== "guest" && (
           <Button
             variant="secondary"
-            className="h-8 w-8 rounded-md p-0 flex items-center justify-center shadow-sm bg-white"
+            size="icon"
+            className="h-8 w-8 shadow-sm bg-white"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleExport}
             title="Export as PNG image"
           >
-            <Download className="h-3.5 w-3.5" />
+            <Download className="h-4 w-4" />
           </Button>
         )}
         {!isReadOnly && roomSlug && roomId !== "guest" && (
           <Button
             variant="secondary"
+            size="sm"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setIsShareModalOpen(true)}
             title="Share canvas workspace"
-            className="flex items-center gap-1 h-8 px-2.5 shadow-sm font-mono text-[11px] font-bold bg-white"
+            className="flex items-center gap-1 h-8 font-mono text-[11px] font-bold bg-white"
           >
-            <Share2 className="h-3.5 w-3.5 text-[#D95F4D]" />
+            <Share2 className="h-4 w-4 text-[#D95F4D]" />
             <span className="hidden sm:inline">
               SHARE
             </span>
@@ -2090,7 +2098,6 @@ export function Canvas({
         )}
       </div>
 
-      {/* Zoom Widget - Floating bottom left */}
       <div className="absolute bottom-24 left-6 md:bottom-6 md:left-6 z-10 flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-lg shadow-sm">
         <Button
           variant="ghost"
@@ -2101,7 +2108,7 @@ export function Canvas({
           disabled={isCanvasLocked}
           title="Zoom Out"
         >
-          <ZoomOut className="h-3.5 w-3.5" />
+          <ZoomOut className="h-4 w-4" />
         </Button>
         <button
           className="text-xs font-mono font-semibold px-2 w-12 text-center text-[#1E1E1E] hover:text-[#D95F4D] cursor-pointer"
@@ -2124,7 +2131,7 @@ export function Canvas({
           disabled={isCanvasLocked}
           title="Zoom In"
         >
-          <ZoomIn className="h-3.5 w-3.5" />
+          <ZoomIn className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
@@ -2135,7 +2142,7 @@ export function Canvas({
           disabled={isCanvasLocked || elements.length === 0}
           title="Center on last drawn element"
         >
-          <Locate className="h-3.5 w-3.5" />
+          <Locate className="h-4 w-4" />
         </Button>
         <div className="w-px h-4 bg-[#E5E0D8]" />
         <Button
@@ -2151,9 +2158,9 @@ export function Canvas({
           }
         >
           {isCanvasLocked ? (
-            <Lock className="h-3.5 w-3.5" />
+            <Lock className="h-4 w-4" />
           ) : (
-            <Unlock className="h-3.5 w-3.5" />
+            <Unlock className="h-4 w-4" />
           )}
         </Button>
       </div>

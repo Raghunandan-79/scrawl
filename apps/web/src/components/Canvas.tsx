@@ -766,6 +766,9 @@ export function Canvas({
 
   // Handle infinite scroll wheel and zoom events
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const handleWheel = (e: WheelEvent) => {
       if (isCanvasLockedRef.current) return;
 
@@ -839,14 +842,14 @@ export function Canvas({
       });
     };
 
-    window.addEventListener("wheel", handleWheel, { passive: false });
-    window.addEventListener("gesturestart", handleGestureStart, { passive: false });
-    window.addEventListener("gesturechange", handleGestureChange, { passive: false });
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("gesturestart", handleGestureStart, { passive: false });
+    container.addEventListener("gesturechange", handleGestureChange, { passive: false });
 
     return () => {
-      window.removeEventListener("wheel", handleWheel);
-      window.removeEventListener("gesturestart", handleGestureStart);
-      window.removeEventListener("gesturechange", handleGestureChange);
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("gesturestart", handleGestureStart);
+      container.removeEventListener("gesturechange", handleGestureChange);
     };
   }, []);
 

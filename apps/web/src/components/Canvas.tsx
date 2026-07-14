@@ -773,9 +773,11 @@ export function Canvas({
       if (isCanvasLockedRef.current) return;
       e.preventDefault();
       if (e.ctrlKey) {
-        // Zoom
-        const zoomFactor = 1.05;
-        const factor = e.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
+        // Zoom: Calculate factor continuously based on deltaY magnitude to support smooth touchpad pinch
+        const zoomIntensity = 0.005;
+        let factor = Math.exp(-e.deltaY * zoomIntensity);
+        // Clamp to prevent huge speed jumps on large mouse wheel ticks
+        factor = Math.max(0.9, Math.min(1.1, factor));
 
         const currentZoom = zoomRef.current;
         const currentPan = panRef.current;
@@ -803,8 +805,45 @@ export function Canvas({
       }
     };
 
+    // Support Safari Mac trackpad pinch gestures
+    let gestureStartZoom = 1;
+    let gestureStartPan = { x: 0, y: 0 };
+
+    const handleGestureStart = (e: any) => {
+      e.preventDefault();
+      gestureStartZoom = zoomRef.current;
+      gestureStartPan = panRef.current;
+    };
+
+    const handleGestureChange = (e: any) => {
+      e.preventDefault();
+      const currentZoom = gestureStartZoom;
+      const currentPan = gestureStartPan;
+      const newZoom = Math.min(10, Math.max(0.1, currentZoom * e.scale));
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX !== undefined ? e.clientX - rect.left : rect.width / 2;
+      const mouseY = e.clientY !== undefined ? e.clientY - rect.top : rect.height / 2;
+
+      const worldX = (mouseX - currentPan.x) / currentZoom;
+      const worldY = (mouseY - currentPan.y) / currentZoom;
+
+      setZoom(newZoom);
+      setPan({
+        x: mouseX - worldX * newZoom,
+        y: mouseY - worldY * newZoom,
+      });
+    };
+
     canvas.addEventListener("wheel", handleWheel, { passive: false });
-    return () => canvas.removeEventListener("wheel", handleWheel);
+    canvas.addEventListener("gesturestart", handleGestureStart);
+    canvas.addEventListener("gesturechange", handleGestureChange);
+
+    return () => {
+      canvas.removeEventListener("wheel", handleWheel);
+      canvas.removeEventListener("gesturestart", handleGestureStart);
+      canvas.removeEventListener("gesturechange", handleGestureChange);
+    };
   }, []);
 
   // Keyboard hotkeys for tools and undo/redo

@@ -74,6 +74,7 @@ export function Canvas({
   } | null>(null);
   const lockedSizeRef = useRef<{ width: number; height: number } | null>(null);
 
+
   useEffect(() => {
     isCanvasLockedRef.current = isCanvasLocked;
     if (isCanvasLocked) {
@@ -775,7 +776,24 @@ export function Canvas({
         // Zoom
         const zoomFactor = 1.05;
         const factor = e.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
-        setZoom((z) => Math.min(10, Math.max(0.1, z * factor)));
+
+        const currentZoom = zoomRef.current;
+        const currentPan = panRef.current;
+        const newZoom = Math.min(10, Math.max(0.1, currentZoom * factor));
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Calculate new pan relative to cursor position
+        const worldX = (mouseX - currentPan.x) / currentZoom;
+        const worldY = (mouseY - currentPan.y) / currentZoom;
+
+        setZoom(newZoom);
+        setPan({
+          x: mouseX - worldX * newZoom,
+          y: mouseY - worldY * newZoom,
+        });
       } else {
         // Pan
         setPan((prev) => ({
@@ -1864,7 +1882,24 @@ export function Canvas({
 
   // Zoom helpers
   const adjustZoom = (factor: number) => {
-    setZoom((z) => Math.min(10, Math.max(0.1, z * factor)));
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const currentZoom = zoomRef.current;
+    const currentPan = panRef.current;
+    const newZoom = Math.min(10, Math.max(0.1, currentZoom * factor));
+
+    const worldX = (centerX - currentPan.x) / currentZoom;
+    const worldY = (centerY - currentPan.y) / currentZoom;
+
+    setZoom(newZoom);
+    setPan({
+      x: centerX - worldX * newZoom,
+      y: centerY - worldY * newZoom,
+    });
   };
 
   // Export canvas

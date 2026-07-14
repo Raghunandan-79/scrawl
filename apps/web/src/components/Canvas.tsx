@@ -766,11 +766,12 @@ export function Canvas({
 
   // Handle infinite scroll wheel and zoom events
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
     const handleWheel = (e: WheelEvent) => {
       if (isCanvasLockedRef.current) return;
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
       e.preventDefault();
       if (e.ctrlKey) {
         // Zoom: Calculate factor continuously based on deltaY magnitude to support smooth touchpad pinch
@@ -817,6 +818,9 @@ export function Canvas({
 
     const handleGestureChange = (e: any) => {
       e.preventDefault();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
       const currentZoom = gestureStartZoom;
       const currentPan = gestureStartPan;
       const newZoom = Math.min(10, Math.max(0.1, currentZoom * e.scale));
@@ -835,14 +839,14 @@ export function Canvas({
       });
     };
 
-    canvas.addEventListener("wheel", handleWheel, { passive: false });
-    canvas.addEventListener("gesturestart", handleGestureStart);
-    canvas.addEventListener("gesturechange", handleGestureChange);
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("gesturestart", handleGestureStart, { passive: false });
+    window.addEventListener("gesturechange", handleGestureChange, { passive: false });
 
     return () => {
-      canvas.removeEventListener("wheel", handleWheel);
-      canvas.removeEventListener("gesturestart", handleGestureStart);
-      canvas.removeEventListener("gesturechange", handleGestureChange);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("gesturestart", handleGestureStart);
+      window.removeEventListener("gesturechange", handleGestureChange);
     };
   }, []);
 

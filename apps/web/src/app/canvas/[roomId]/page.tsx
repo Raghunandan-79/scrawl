@@ -21,7 +21,12 @@ export default function CanvasRoomPage() {
   const [resolvedRoomSlug, setResolvedRoomSlug] = useState<string>("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    let token = null;
+    try {
+      token = localStorage.getItem("token");
+    } catch (e) {
+      console.warn("Storage access denied:", e);
+    }
     const isGuest = pathIdOrSlug === "guest";
 
     if (!token && !isGuest) {
@@ -30,6 +35,29 @@ export default function CanvasRoomPage() {
     }
 
     const isNumeric = /^\d+$/.test(pathIdOrSlug);
+
+    const migrateOldStorageKeys = (activeRoomId: string) => {
+      try {
+        const oldKeys = ["canvas_elements", "scrawl_elements", "elements"];
+        for (const oldKey of oldKeys) {
+          const data = localStorage.getItem(oldKey);
+          if (data) {
+            const targetKey =
+              activeRoomId === "guest"
+                ? "guest_canvas_elements"
+                : `scrawl_elements_${activeRoomId}`;
+
+            // If the new key doesn't have data yet, migrate it
+            if (!localStorage.getItem(targetKey)) {
+              localStorage.setItem(targetKey, data);
+            }
+            localStorage.removeItem(oldKey);
+          }
+        }
+      } catch (e) {
+        console.warn("Legacy key migration failed:", e);
+      }
+    };
 
     const resolveWorkspace = async () => {
       try {
@@ -42,7 +70,13 @@ export default function CanvasRoomPage() {
           activeRoomSlug = "guest";
           readMode = false;
 
-          const stored = localStorage.getItem("guest_canvas_elements");
+          migrateOldStorageKeys(activeRoomId);
+
+          let stored = null;
+          try {
+            stored = localStorage.getItem("guest_canvas_elements");
+          } catch (e) {}
+
           setInitialElements(stored ? JSON.parse(stored) : []);
           setResolvedRoomId(activeRoomId);
           setResolvedRoomSlug(activeRoomSlug);
@@ -75,18 +109,29 @@ export default function CanvasRoomPage() {
         setResolvedRoomSlug(activeRoomSlug);
         setIsReadOnly(readMode);
 
+        migrateOldStorageKeys(activeRoomId);
+
         const storageKey = `scrawl_elements_${activeRoomId}`;
-        const stored = localStorage.getItem(storageKey);
+        let stored = null;
+        try {
+          stored = localStorage.getItem(storageKey);
+        } catch (e) {}
+
         if (stored) {
-          setInitialElements(JSON.parse(stored));
+          try {
+            setInitialElements(JSON.parse(stored));
+          } catch (e) {}
           setError(null);
-        } else {
-          // Fetch chats/elements using the numerical room ID
+          setLoading(false); // Optimistically load cache first
+        }
+
+        // Always fetch from backend to verify and get the absolute latest state
+        try {
           const response = await axios.get(
             `${BACKEND_URL}/api/v1/chats/get-chats/${activeRoomId}`,
             {
               headers: {
-                token: token,
+                token: token || "",
               },
             },
           );
@@ -105,18 +150,25 @@ export default function CanvasRoomPage() {
               } else if (action.type === "delete" && action.elementId) {
                 delete elementsMap[action.elementId];
               }
-            } catch (e) {
-              // plain text or malformed JSON, ignore
-            }
+            } catch (e) {}
           });
 
           const fetchedElements = Object.values(elementsMap);
           setInitialElements(fetchedElements);
-          localStorage.setItem(storageKey, JSON.stringify(fetchedElements));
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(fetchedElements));
+          } catch (e) {}
           setError(null);
+        } catch (err: any) {
+          console.error("Failed to load room drawing history from server:", err);
+          if (!stored) {
+            setError(
+              err.response?.data?.message || "Could not retrieve drawing history.",
+            );
+          }
         }
       } catch (err: any) {
-        console.error("Failed to load room drawing history:", err);
+        console.error("Failed to resolve workspace:", err);
         setError(
           err.response?.data?.message || "Could not retrieve drawing history.",
         );

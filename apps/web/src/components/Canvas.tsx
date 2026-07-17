@@ -52,7 +52,15 @@ export function Canvas({
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [elements, setElements] = useState<CanvasElement[]>(initialElements);
+  const [elements, rawSetElements] = useState<CanvasElement[]>(initialElements);
+  const isDirtyRef = useRef(false);
+
+  const setElements = (
+    value: CanvasElement[] | ((prev: CanvasElement[]) => CanvasElement[])
+  ) => {
+    isDirtyRef.current = true;
+    rawSetElements(value);
+  };
   // Default to hand tool if read-only, rect otherwise
   const [tool, setTool] = useState<Tool>(isReadOnly ? "hand" : "rect");
 
@@ -353,8 +361,10 @@ export function Canvas({
   // Load initial elements properly
   useEffect(() => {
     if (initialElements && initialElements.length > 0) {
-      setElements(initialElements);
-      setMyElements(initialElements.map((el) => el.id));
+      if (!isDirtyRef.current) {
+        rawSetElements(initialElements);
+        setMyElements(initialElements.map((el) => el.id));
+      }
     }
   }, [initialElements]);
 

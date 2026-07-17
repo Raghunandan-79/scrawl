@@ -9,11 +9,25 @@ export function LocalStorageToast() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let storageAvailable = false;
+    try {
+      const test = window.localStorage;
+      storageAvailable = !!test;
+    } catch (e) {
+      storageAvailable = false;
+    }
+
     const handleStorageFull = () => {
       setIsFull(true);
     };
 
     window.addEventListener("localstorage-full", handleStorageFull);
+
+    if (!storageAvailable) {
+      (window as any).__storageQuotaExceeded = true;
+      window.dispatchEvent(new CustomEvent("localstorage-full"));
+      return;
+    }
 
     // Helper to check if storage is already full
     const checkStorageFull = () => {

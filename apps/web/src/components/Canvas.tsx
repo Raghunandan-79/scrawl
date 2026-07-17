@@ -417,15 +417,38 @@ export function Canvas({
     return () => clearInterval(interval);
   }, []);
 
-  // Save canvas elements to localStorage for all room types
+  // Save canvas elements to localStorage for all room types with debouncing to prevent stuttering
   useEffect(() => {
-    if (roomId) {
-      const storageKey =
-        roomId === "guest"
-          ? "guest_canvas_elements"
-          : `scrawl_elements_${roomId}`;
-      localStorage.setItem(storageKey, JSON.stringify(elements));
-    }
+    if (!roomId) return;
+    const storageKey =
+      roomId === "guest"
+        ? "guest_canvas_elements"
+        : `scrawl_elements_${roomId}`;
+
+    const elementsToSave = elements;
+
+    const timeoutId = setTimeout(() => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(elementsToSave));
+      } catch (e) {
+        // Handled globally, swallow to avoid crashing React render cycle
+      }
+    }, 500);
+
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(elementsToSave));
+      } catch (e) {
+        // Handled globally, swallow to avoid crashing
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, [elements, roomId]);
 
   // Process canvas action from collab partners

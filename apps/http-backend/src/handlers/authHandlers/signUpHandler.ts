@@ -33,6 +33,7 @@ export const signUpHandler = async (req: Request, res: Response) => {
       userId: user.id,
     });
   } catch (e) {
+    console.error("Signup error details:", e);
     return res.status(400).json({
       message: "Unable to signup",
     });

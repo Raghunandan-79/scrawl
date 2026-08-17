@@ -48,6 +48,7 @@ export const signInHandler = async (req: Request, res: Response) => {
       });
     }
   } catch (e) {
+    console.error("Signin error details:", e);
     return res.status(400).json({
       message: "User doesnot exits",
     });

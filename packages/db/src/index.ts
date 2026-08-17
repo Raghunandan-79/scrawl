@@ -3,6 +3,11 @@ import { PrismaClient } from "@prisma/client";
 import pg from "pg";
 import dotenv from "dotenv";
 import path from "path";
+import net from "net";
+
+if (net.setDefaultAutoSelectFamilyAttemptTimeout) {
+  net.setDefaultAutoSelectFamilyAttemptTimeout(1000);
+}
 
 dotenv.config({
   path: path.resolve(process.cwd(), "../../packages/db/.env"),

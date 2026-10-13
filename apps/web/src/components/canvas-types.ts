@@ -40,12 +40,37 @@ export interface CanvasElement {
   strokeWidth: number;
   strokeStyle: "solid" | "dashed";
   dataUrl?: string;
+  pageId?: string;
 }
 
-export type ActionType = "add" | "update" | "delete";
+export interface CanvasPage {
+  id: string;
+  title: string;
+  icon?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export const DEFAULT_PAGE_ID = "page-default";
+export const DEFAULT_PAGE_TITLE = "Page 1";
+export const DEFAULT_PAGE_ICON = "📄";
+
+export type ActionType =
+  | "add"
+  | "update"
+  | "delete"
+  | "page_create"
+  | "page_update"
+  | "page_delete"
+  | "page_duplicate";
 
 export interface CanvasAction {
   type: ActionType;
   elementId?: string; // used for delete
   element?: CanvasElement; // used for add, update
+  pageId?: string;
+  page?: CanvasPage; // used for page_create, page_update
+  sourcePageId?: string; // used for page_duplicate
+  newPage?: CanvasPage; // used for page_duplicate
+  elements?: CanvasElement[]; // used for page_duplicate
 }

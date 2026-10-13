@@ -1,8 +1,17 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Tool, CanvasElement, Point, CanvasAction } from "./canvas-types";
+import {
+  Tool,
+  CanvasElement,
+  Point,
+  CanvasAction,
+  CanvasPage,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_TITLE,
+  DEFAULT_PAGE_ICON,
+} from "./canvas-types";
 import { renderElement } from "./canvas-renderer";
 import { useSocket } from "../app/hooks/useSocket";
 import { Button } from "@repo/ui/button";
@@ -30,12 +39,23 @@ import {
   Lock,
   Unlock,
   Locate,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Check,
+  Edit2,
+  Copy,
+  Search,
+  Plus,
 } from "lucide-react";
 
 interface CanvasProps {
   roomId: string;
   roomSlug: string;
   initialElements: CanvasElement[];
+  initialPages?: CanvasPage[];
   isReadOnly?: boolean;
 }
 
@@ -43,6 +63,7 @@ export function Canvas({
   roomId,
   roomSlug,
   initialElements,
+  initialPages,
   isReadOnly = false,
 }: CanvasProps) {
   const router = useRouter();
@@ -54,6 +75,29 @@ export function Canvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [elements, rawSetElements] = useState<CanvasElement[]>(initialElements);
   const isDirtyRef = useRef(false);
+
+  // Pages state for Notion-style multiple pages
+  const [pages, setPages] = useState<CanvasPage[]>(() => {
+    if (initialPages && initialPages.length > 0) return initialPages;
+    return [
+      {
+        id: DEFAULT_PAGE_ID,
+        title: DEFAULT_PAGE_TITLE,
+        icon: DEFAULT_PAGE_ICON,
+        createdAt: 1,
+      },
+    ];
+  });
+  const [activePageId, setActivePageId] = useState<string>(() => {
+    return initialPages && initialPages.length > 0
+      ? initialPages[0].id
+      : DEFAULT_PAGE_ID;
+  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [pageSearchQuery, setPageSearchQuery] = useState("");
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [editingPageTitle, setEditingPageTitle] = useState("");
+  const [isPageSwitcherOpen, setIsPageSwitcherOpen] = useState(false);
 
   const setElements = (
     value: CanvasElement[] | ((prev: CanvasElement[]) => CanvasElement[])
@@ -75,33 +119,36 @@ export function Canvas({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
-  const isCanvasLockedRef = useRef(isCanvasLocked);
+  const isCanvasLockedRef = useRef(false);
   const [lockedSize, setLockedSize] = useState<{
     width: number;
     height: number;
   } | null>(null);
   const lockedSizeRef = useRef<{ width: number; height: number } | null>(null);
 
-
-  useEffect(() => {
-    isCanvasLockedRef.current = isCanvasLocked;
-    if (isCanvasLocked) {
-      setZoom(1);
-      setPan({ x: 0, y: 0 });
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const size = {
-          width: canvas.parentElement?.clientWidth || window.innerWidth,
-          height: canvas.parentElement?.clientHeight || window.innerHeight,
-        };
-        setLockedSize(size);
-        lockedSizeRef.current = size;
+  const toggleCanvasLock = () => {
+    setIsCanvasLocked((prev) => {
+      const next = !prev;
+      isCanvasLockedRef.current = next;
+      if (next) {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const size = {
+            width: canvas.parentElement?.clientWidth || window.innerWidth,
+            height: canvas.parentElement?.clientHeight || window.innerHeight,
+          };
+          setLockedSize(size);
+          lockedSizeRef.current = size;
+        }
+      } else {
+        setLockedSize(null);
+        lockedSizeRef.current = null;
       }
-    } else {
-      setLockedSize(null);
-      lockedSizeRef.current = null;
-    }
-  }, [isCanvasLocked]);
+      return next;
+    });
+  };
 
   // Collaborator cursors state
   const [collaboratorCursors, setCollaboratorCursors] = useState<
@@ -135,7 +182,7 @@ export function Canvas({
 
   // Undo/Redo Stacks (Track own created elements)
   const [myElements, setMyElements] = useState<string[]>([]);
-  const [undoStack, setUndoStack] = useState<CanvasElement[][]>([]);
+  const [, setUndoStack] = useState<CanvasElement[][]>([]);
   const [redoStack, setRedoStack] = useState<CanvasElement[][]>([]);
 
   // Trigger redraw on async events (e.g. image loads)
@@ -208,7 +255,7 @@ export function Canvas({
   const isPinching = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!isDrawing || tool === "hand") return;
+    if (!isDrawing || toolRef.current === "hand") return;
 
     let animationFrameId: number;
 
@@ -362,11 +409,142 @@ export function Canvas({
   useEffect(() => {
     if (initialElements && initialElements.length > 0) {
       if (!isDirtyRef.current) {
-        rawSetElements(initialElements);
-        setMyElements(initialElements.map((el) => el.id));
+        queueMicrotask(() => {
+          rawSetElements(initialElements);
+          setMyElements(initialElements.map((el) => el.id));
+        });
       }
     }
   }, [initialElements]);
+
+  // Load initial pages properly
+  useEffect(() => {
+    if (initialPages && initialPages.length > 0) {
+      queueMicrotask(() => {
+        setPages(initialPages);
+        setActivePageId((current) =>
+          initialPages.some((p) => p.id === current) ? current : initialPages[0].id,
+        );
+      });
+    }
+  }, [initialPages]);
+
+  // Broadcast an action to the WS
+  const broadcastAction = useCallback(
+    (action: CanvasAction) => {
+      if (isReadOnly || !socket || loading || socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      try {
+        socket.send(
+          JSON.stringify({
+            type: "chat",
+            roomId: roomId.toString(),
+            message: JSON.stringify(action),
+          }),
+        );
+      } catch (err) {
+        console.error("Failed to broadcast action:", err);
+      }
+    },
+    [isReadOnly, socket, loading, roomId],
+  );
+
+  // Process canvas action from collab partners
+  const handleCollaborativeAction = useCallback(
+    (action: CanvasAction) => {
+      if (action.type === "page_create" && action.page) {
+        setPages((prev) => {
+          if (prev.some((p) => p.id === action.page!.id)) return prev;
+          return [...prev, action.page!];
+        });
+        return;
+      }
+
+      if (action.type === "page_update" && action.page) {
+        setPages((prev) =>
+          prev.map((p) =>
+            p.id === action.page!.id ? { ...p, ...action.page } : p,
+          ),
+        );
+        return;
+      }
+
+      if (action.type === "page_delete" && action.pageId) {
+        setPages((prev) => {
+          const next = prev.filter((p) => p.id !== action.pageId);
+          return next.length > 0
+            ? next
+            : [
+                {
+                  id: DEFAULT_PAGE_ID,
+                  title: DEFAULT_PAGE_TITLE,
+                  icon: DEFAULT_PAGE_ICON,
+                  createdAt: 1,
+                },
+              ];
+        });
+        setActivePageId((current) => {
+          if (current === action.pageId) {
+            return DEFAULT_PAGE_ID;
+          }
+          return current;
+        });
+        setElements((prev) =>
+          prev.filter((e) => (e.pageId || DEFAULT_PAGE_ID) !== action.pageId),
+        );
+        return;
+      }
+
+      if (action.type === "page_duplicate" && action.newPage) {
+        setPages((prev) => {
+          if (prev.some((p) => p.id === action.newPage!.id)) return prev;
+          return [...prev, action.newPage!];
+        });
+        if (action.elements && action.elements.length > 0) {
+          setElements((prev) => [...prev, ...action.elements!]);
+        }
+        return;
+      }
+
+      setElements((prev) => {
+        switch (action.type) {
+          case "add":
+            if (action.element) {
+              const el = {
+                ...action.element,
+                pageId: action.element.pageId || DEFAULT_PAGE_ID,
+              };
+              const idx = prev.findIndex((e) => e.id === el.id);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = el;
+                return next;
+              }
+              return [...prev, el];
+            }
+            return prev;
+          case "update":
+            if (action.element) {
+              const el = {
+                ...action.element,
+                pageId: action.element.pageId || DEFAULT_PAGE_ID,
+              };
+              return prev.map((e) => (e.id === el.id ? el : e));
+            }
+            return prev;
+          case "delete":
+            if (action.elementId) {
+              return prev.filter((e) => e.id !== action.elementId);
+            }
+            return prev;
+          default:
+            return prev;
+        }
+      });
+    },
+    [],
+  );
 
   // Connect to websocket room
   useEffect(() => {
@@ -378,7 +556,7 @@ export function Canvas({
         }),
       );
 
-      socket.onmessage = (event) => {
+      const handleMessage = (event: MessageEvent) => {
         try {
           const parsedData = JSON.parse(event.data);
           if (
@@ -405,8 +583,13 @@ export function Canvas({
           console.error("Error processing websocket message:", e);
         }
       };
+
+      socket.addEventListener("message", handleMessage);
+      return () => {
+        socket.removeEventListener("message", handleMessage);
+      };
     }
-  }, [socket, loading, roomId]);
+  }, [socket, loading, roomId, handleCollaborativeAction]);
 
   // Periodic cleanup of stale cursors (inactive/offline collaborators)
   useEffect(() => {
@@ -427,29 +610,36 @@ export function Canvas({
     return () => clearInterval(interval);
   }, []);
 
-  // Save canvas elements to localStorage for all room types with debouncing to prevent stuttering
+  // Save canvas elements and pages to localStorage with debouncing
   useEffect(() => {
     if (!roomId) return;
     const storageKey =
       roomId === "guest"
         ? "guest_canvas_elements"
         : `scrawl_elements_${roomId}`;
+    const pagesKey =
+      roomId === "guest"
+        ? "guest_canvas_pages"
+        : `scrawl_pages_${roomId}`;
 
     const elementsToSave = elements;
+    const pagesToSave = pages;
 
     const timeoutId = setTimeout(() => {
       try {
         localStorage.setItem(storageKey, JSON.stringify(elementsToSave));
-      } catch (e) {
-        // Handled globally, swallow to avoid crashing React render cycle
+        localStorage.setItem(pagesKey, JSON.stringify(pagesToSave));
+      } catch {
+        // Handled globally
       }
     }, 500);
 
     const handleBeforeUnload = () => {
       try {
         localStorage.setItem(storageKey, JSON.stringify(elementsToSave));
-      } catch (e) {
-        // Handled globally, swallow to avoid crashing
+        localStorage.setItem(pagesKey, JSON.stringify(pagesToSave));
+      } catch {
+        // Handled globally
       }
     };
 
@@ -459,64 +649,172 @@ export function Canvas({
       clearTimeout(timeoutId);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [elements, roomId]);
+  }, [elements, pages, roomId]);
 
-  // Process canvas action from collab partners
-  const handleCollaborativeAction = (action: CanvasAction) => {
-    setElements((prev) => {
-      switch (action.type) {
-        case "add":
-          if (action.element) {
-            // Replace existing or append new
-            const idx = prev.findIndex((e) => e.id === action.element!.id);
-            if (idx >= 0) {
-              const next = [...prev];
-              next[idx] = action.element;
-              return next;
-            }
-            return [...prev, action.element];
-          }
-          return prev;
-        case "update":
-          if (action.element) {
-            return prev.map((e) =>
-              e.id === action.element!.id ? action.element! : e,
-            );
-          }
-          return prev;
-        case "delete":
-          if (action.elementId) {
-            return prev.filter((e) => e.id !== action.elementId);
-          }
-          return prev;
-        default:
-          return prev;
-      }
+  // Selection & styling helper without cascading renders
+  const selectElement = useCallback((elOrId: string | CanvasElement | null) => {
+    if (!elOrId) {
+      setSelectedElementId(null);
+      return;
+    }
+    const id = typeof elOrId === "string" ? elOrId : elOrId.id;
+    const el =
+      typeof elOrId === "string"
+        ? elementsRef.current.find((e) => e.id === id)
+        : elOrId;
+    setSelectedElementId(id);
+    if (el) {
+      setStrokeColor(el.strokeColor);
+      setFillColor(el.fillColor);
+      setStrokeWidth(el.strokeWidth);
+      setStrokeStyle(el.strokeStyle);
+    }
+  }, []);
+
+  // Page manipulation methods
+  const handleCreatePage = (customTitle?: string) => {
+    if (isReadOnly) return;
+    const pageNumber = pages.length + 1;
+    const icons = ["📄", "📝", "🎨", "💡", "🚀", "📐", "📊", "⚡", "🎯", "🧠"];
+    const randomIcon = icons[pages.length % icons.length];
+    const newPage: CanvasPage = {
+      id: `page-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      title: customTitle || `Page ${pageNumber}`,
+      icon: randomIcon,
+      createdAt: Date.now(),
+    };
+
+    setPages((prev) => [...prev, newPage]);
+    setActivePageId(newPage.id);
+    selectElement(null);
+    setTextInput(null);
+    setUndoStack([]);
+    setRedoStack([]);
+
+    broadcastAction({
+      type: "page_create",
+      page: newPage,
     });
   };
 
-  // Broadcast an action to the WS
-  const broadcastAction = (action: CanvasAction) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(
-        JSON.stringify({
-          type: "chat",
-          roomId: roomId.toString(),
-          message: JSON.stringify(action),
-        }),
-      );
+  const handleRenamePage = (pageId: string, newTitle: string) => {
+    if (isReadOnly || !newTitle.trim()) {
+      setEditingPageId(null);
+      return;
+    }
+    const trimmed = newTitle.trim();
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === pageId ? { ...p, title: trimmed, updatedAt: Date.now() } : p,
+      ),
+    );
+    setEditingPageId(null);
+
+    const updatedPage = pages.find((p) => p.id === pageId);
+    if (updatedPage) {
+      broadcastAction({
+        type: "page_update",
+        page: { ...updatedPage, title: trimmed },
+      });
     }
   };
 
-  // Convert Screen Coordinates -> World Coordinates
-  const getMouseWorldPos = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left - pan.x) / zoom,
-      y: (e.clientY - rect.top - pan.y) / zoom,
+  const handleDuplicatePage = (sourcePageId: string) => {
+    if (isReadOnly) return;
+    const sourcePage = pages.find((p) => p.id === sourcePageId);
+    if (!sourcePage) return;
+
+    const newPageId = `page-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const newPage: CanvasPage = {
+      id: newPageId,
+      title: `${sourcePage.title} (Copy)`,
+      icon: sourcePage.icon,
+      createdAt: Date.now(),
     };
+
+    const sourceElements = elements.filter(
+      (el) => (el.pageId || DEFAULT_PAGE_ID) === sourcePageId,
+    );
+    const duplicatedElements: CanvasElement[] = sourceElements.map((el) => ({
+      ...el,
+      id: `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      pageId: newPageId,
+    }));
+
+    setPages((prev) => [...prev, newPage]);
+    setElements((prev) => [...prev, ...duplicatedElements]);
+    setActivePageId(newPageId);
+    selectElement(null);
+    setTextInput(null);
+    setUndoStack([]);
+    setRedoStack([]);
+
+    broadcastAction({
+      type: "page_duplicate",
+      sourcePageId,
+      newPage,
+      elements: duplicatedElements,
+    });
+  };
+
+  const handleDeletePage = (pageId: string) => {
+    if (isReadOnly) return;
+    if (pages.length <= 1) {
+      alert("A workspace must contain at least one page.");
+      return;
+    }
+    const pageToDelete = pages.find((p) => p.id === pageId);
+    if (!pageToDelete) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${pageToDelete.title}" and all drawings on it?`,
+      )
+    ) {
+      return;
+    }
+
+    const remainingPages = pages.filter((p) => p.id !== pageId);
+    setPages(remainingPages);
+    setElements((prev) =>
+      prev.filter((el) => (el.pageId || DEFAULT_PAGE_ID) !== pageId),
+    );
+
+    if (activePageId === pageId) {
+      setActivePageId(remainingPages[0].id);
+      selectElement(null);
+      setTextInput(null);
+      setUndoStack([]);
+      setRedoStack([]);
+    }
+
+    broadcastAction({
+      type: "page_delete",
+      pageId,
+    });
+  };
+
+  const handleSwitchPage = (pageId: string) => {
+    if (pageId === activePageId) return;
+    setActivePageId(pageId);
+    selectElement(null);
+    setTextInput(null);
+    setUndoStack([]);
+    setRedoStack([]);
+  };
+
+  const currentIndex = pages.findIndex((p) => p.id === activePageId);
+  const currentPage = pages[currentIndex] || pages[0];
+
+  const handlePrevPage = () => {
+    if (currentIndex > 0) {
+      handleSwitchPage(pages[currentIndex - 1].id);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentIndex < pages.length - 1) {
+      handleSwitchPage(pages[currentIndex + 1].id);
+    }
   };
 
   // Helper: Find element at point
@@ -524,6 +822,7 @@ export function Canvas({
     // Iterate from newest to oldest (reverse order)
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
+      if ((el.pageId || DEFAULT_PAGE_ID) !== activePageId) continue;
       if (
         el.type === "rect" ||
         el.type === "text" ||
@@ -664,8 +963,9 @@ export function Canvas({
       ctx.scale(zoom, zoom);
     }
 
-    // Render stored elements
+    // Render stored elements on active page
     elements.forEach((el) => {
+      if ((el.pageId || DEFAULT_PAGE_ID) !== activePageId) return;
       if (textInput && textInput.editingElementId === el.id) return;
       renderElement(ctx, el, roughMode, zoom, () => {
         setRedrawTrigger((prev) => prev + 1);
@@ -681,7 +981,11 @@ export function Canvas({
 
     // Render selection box
     if (tool === "select" && selectedElementId) {
-      const el = elements.find((e) => e.id === selectedElementId);
+      const el = elements.find(
+        (e) =>
+          e.id === selectedElementId &&
+          (e.pageId || DEFAULT_PAGE_ID) === activePageId,
+      );
       if (el) {
         ctx.strokeStyle = "#D95F4D";
         ctx.lineWidth = 1 / zoom;
@@ -717,10 +1021,10 @@ export function Canvas({
 
     // Render collaborator cursors in screen space
     const activeCursors = Object.entries(collaboratorCursors).filter(
-      ([_, c]) => Date.now() - c.updatedAt < 3000,
+      ([, c]) => Date.now() - c.updatedAt < 3000,
     );
 
-    activeCursors.forEach(([userId, cursor]) => {
+    activeCursors.forEach(([, cursor]) => {
       const screenX = cursor.x * zoom + pan.x;
       const screenY = cursor.y * zoom + pan.y;
 
@@ -795,6 +1099,9 @@ export function Canvas({
     collaboratorCursors,
     canvasSize,
     redrawTrigger,
+    activePageId,
+    lockedSize,
+    textInput,
   ]);
 
   // Handle infinite scroll wheel and zoom events
@@ -846,24 +1153,32 @@ export function Canvas({
     let gestureStartZoom = 1;
     let gestureStartPan = { x: 0, y: 0 };
 
-    const handleGestureStart = (e: any) => {
+    interface GestureEventLike extends Event {
+      scale?: number;
+      clientX?: number;
+      clientY?: number;
+    }
+
+    const handleGestureStart = (e: Event) => {
       e.preventDefault();
       gestureStartZoom = zoomRef.current;
       gestureStartPan = panRef.current;
     };
 
-    const handleGestureChange = (e: any) => {
+    const handleGestureChange = (e: Event) => {
       e.preventDefault();
       const canvas = canvasRef.current;
       if (!canvas) return;
+      const ge = e as GestureEventLike;
 
       const currentZoom = gestureStartZoom;
       const currentPan = gestureStartPan;
-      const newZoom = Math.min(10, Math.max(0.1, currentZoom * e.scale));
+      const scale = ge.scale ?? 1;
+      const newZoom = Math.min(10, Math.max(0.1, currentZoom * scale));
 
       const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX !== undefined ? e.clientX - rect.left : rect.width / 2;
-      const mouseY = e.clientY !== undefined ? e.clientY - rect.top : rect.height / 2;
+      const mouseX = ge.clientX !== undefined ? ge.clientX - rect.left : rect.width / 2;
+      const mouseY = ge.clientY !== undefined ? ge.clientY - rect.top : rect.height / 2;
 
       const worldX = (mouseX - currentPan.x) / currentZoom;
       const worldY = (mouseY - currentPan.y) / currentZoom;
@@ -950,19 +1265,105 @@ export function Canvas({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Handle Resize of canvas on screen size change
+  // Handle Resize of canvas on screen size change or layout change
   useEffect(() => {
+    const parent = canvasRef.current?.parentElement;
     const handleResize = () => {
-      const parent = canvasRef.current?.parentElement;
       setCanvasSize({
         width: parent?.clientWidth || window.innerWidth,
         height: parent?.clientHeight || window.innerHeight,
       });
     };
-    window.addEventListener("resize", handleResize);
-    handleResize(); // trigger initial size computation
-    return () => window.removeEventListener("resize", handleResize);
+    handleResize();
+
+    if (parent && typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(handleResize);
+      observer.observe(parent);
+      return () => observer.disconnect();
+    } else {
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
   }, []);
+
+  // Text tools helper
+  const commitTextInput = () => {
+    if (!textInput) return;
+
+    if (!textInput.text.trim()) {
+      if (textInput.editingElementId) {
+        setElements((prev) =>
+          prev.filter((el) => el.id !== textInput.editingElementId),
+        );
+        setMyElements((prev) =>
+          prev.filter((id) => id !== textInput.editingElementId),
+        );
+        broadcastAction({
+          type: "delete",
+          elementId: textInput.editingElementId,
+        });
+      }
+      setTextInput(null);
+      return;
+    }
+
+    const editingElement = textInput.editingElementId
+      ? elements.find((el) => el.id === textInput.editingElementId)
+      : null;
+
+    const currentStrokeWidth = editingElement
+      ? editingElement.strokeWidth
+      : strokeWidth;
+    const currentStrokeColor = editingElement
+      ? editingElement.strokeColor
+      : strokeColor;
+    const fontSize = currentStrokeWidth * 12;
+    const lines = textInput.text.split("\n");
+
+    // Estimate width & height
+    const longestLineLen = Math.max(...lines.map((l) => l.length));
+    const width = longestLineLen * fontSize * 0.6;
+    const height = lines.length * fontSize * 1.25;
+
+    if (textInput.editingElementId) {
+      // Update existing element
+      setElements((prev) =>
+        prev.map((el) => {
+          if (el.id !== textInput.editingElementId) return el;
+          const updated = {
+            ...el,
+            text: textInput.text,
+            width,
+            height,
+          };
+          broadcastAction({ type: "update", element: updated });
+          return updated;
+        }),
+      );
+    } else {
+      // Create new element
+      const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newElement: CanvasElement = {
+        id: newId,
+        type: "text",
+        x: textInput.x,
+        y: textInput.y,
+        width,
+        height,
+        text: textInput.text,
+        strokeColor: currentStrokeColor,
+        fillColor: "transparent",
+        strokeWidth: currentStrokeWidth,
+        strokeStyle: "solid",
+        pageId: activePageId,
+      };
+
+      setElements((prev) => [...prev, newElement]);
+      setMyElements((prev) => [...prev, newElement.id]);
+      broadcastAction({ type: "add", element: newElement });
+    }
+    setTextInput(null);
+  };
 
   // Mouse Handlers
   const handleStart = (clientX: number, clientY: number) => {
@@ -1003,7 +1404,7 @@ export function Canvas({
               text: clickedEl.text || "",
               editingElementId: clickedEl.id,
             });
-            setSelectedElementId(null);
+            selectElement(null);
             setIsDrawing(false);
             setTimeout(() => {
               textInputRef.current?.focus();
@@ -1016,7 +1417,7 @@ export function Canvas({
               y: mouseY,
               text: "",
             });
-            setSelectedElementId(null);
+            selectElement(null);
             setIsDrawing(false);
             setTimeout(() => {
               textInputRef.current?.focus();
@@ -1090,7 +1491,7 @@ export function Canvas({
     if (tool === "select") {
       const clickedEl = getElementAtPosition(mousePos.x, mousePos.y);
       if (clickedEl) {
-        setSelectedElementId(clickedEl.id);
+        selectElement(clickedEl);
         const handle = getResizeHandleAtPos(mousePos.x, mousePos.y, clickedEl);
         if (handle) {
           setDragMode("resize");
@@ -1103,7 +1504,7 @@ export function Canvas({
           });
         }
       } else {
-        setSelectedElementId(null);
+        selectElement(null);
         setDragMode(null);
       }
       return;
@@ -1122,7 +1523,7 @@ export function Canvas({
     const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newElement: CanvasElement = {
       id: newId,
-      type: tool as any,
+      type: tool as CanvasElement["type"],
       x: mousePos.x,
       y: mousePos.y,
       width: 0,
@@ -1132,6 +1533,7 @@ export function Canvas({
       strokeWidth,
       strokeStyle,
       points: tool === "pencil" ? [mousePos] : undefined,
+      pageId: activePageId,
     };
 
     setActiveElement(newElement);
@@ -1435,17 +1837,26 @@ export function Canvas({
     handleEnd();
   };
 
+  const handleStartRef = useRef(handleStart);
+  const handleMoveRef = useRef(handleMove);
+  const handleEndRef = useRef(handleEnd);
+
+  useEffect(() => {
+    handleStartRef.current = handleStart;
+    handleMoveRef.current = handleMove;
+    handleEndRef.current = handleEnd;
+  });
 
   // Global mouseup listener to catch releases outside the canvas boundaries
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isDrawing) {
-        handleEnd();
+        handleEndRef.current();
       }
     };
     window.addEventListener("mouseup", handleGlobalMouseUp);
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
-  }, [isDrawing, activeElement, selectedElementId, elements]);
+  }, [isDrawing]);
 
   // Manual non-passive touch event listeners for preventing browser scrolling while drawing
   useEffect(() => {
@@ -1473,7 +1884,7 @@ export function Canvas({
         if (toolRef.current !== "hand" && toolRef.current !== "select") {
           if (e.cancelable) e.preventDefault();
         }
-        handleStart(touch.clientX, touch.clientY);
+        handleStartRef.current(touch.clientX, touch.clientY);
       }
     };
 
@@ -1520,7 +1931,7 @@ export function Canvas({
           if (e.cancelable) e.preventDefault();
         }
         const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
+        handleMoveRef.current(touch.clientX, touch.clientY);
       }
     };
 
@@ -1528,7 +1939,7 @@ export function Canvas({
       if (e.touches.length === 0) {
         isPinching.current = false;
         pinchStartDist.current = null;
-        handleEnd();
+        handleEndRef.current();
       } else if (e.touches.length === 1) {
         isPinching.current = false;
         pinchStartDist.current = null;
@@ -1544,93 +1955,7 @@ export function Canvas({
       canvas.removeEventListener("touchmove", onTouchMove);
       canvas.removeEventListener("touchend", onTouchEnd);
     };
-  }, [
-    elements,
-    activeElement,
-    selectedElementId,
-    dragMode,
-    resizeHandle,
-    dragOffset,
-    startPoint,
-    pan,
-    zoom,
-    roughMode,
-    tool,
-    textInput,
-    isReadOnly,
-    strokeColor,
-    fillColor,
-    strokeWidth,
-    strokeStyle,
-    canvasSize,
-  ]);
-
-  // Text tools helper
-  const commitTextInput = () => {
-    if (!textInput) return;
-
-    if (!textInput.text.trim()) {
-      if (textInput.editingElementId) {
-        setElements((prev) => prev.filter((el) => el.id !== textInput.editingElementId));
-        setMyElements((prev) => prev.filter((id) => id !== textInput.editingElementId));
-        broadcastAction({ type: "delete", elementId: textInput.editingElementId });
-      }
-      setTextInput(null);
-      return;
-    }
-
-    const editingElement = textInput.editingElementId
-      ? elements.find((el) => el.id === textInput.editingElementId)
-      : null;
-
-    const currentStrokeWidth = editingElement ? editingElement.strokeWidth : strokeWidth;
-    const currentStrokeColor = editingElement ? editingElement.strokeColor : strokeColor;
-    const fontSize = currentStrokeWidth * 12;
-    const lines = textInput.text.split("\n");
-
-    // Estimate width & height
-    const longestLineLen = Math.max(...lines.map((l) => l.length));
-    const width = longestLineLen * fontSize * 0.6;
-    const height = lines.length * fontSize * 1.25;
-
-    if (textInput.editingElementId) {
-      // Update existing element
-      setElements((prev) =>
-        prev.map((el) => {
-          if (el.id !== textInput.editingElementId) return el;
-          const updated = {
-            ...el,
-            text: textInput.text,
-            width,
-            height,
-          };
-          broadcastAction({ type: "update", element: updated });
-          return updated;
-        })
-      );
-    } else {
-      // Create new element
-      const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newElement: CanvasElement = {
-        id: newId,
-        type: "text",
-        x: textInput.x,
-        y: textInput.y,
-        width,
-        height,
-        text: textInput.text,
-        strokeColor: currentStrokeColor,
-        fillColor: "transparent",
-        strokeWidth: currentStrokeWidth,
-        strokeStyle: "solid",
-      };
-
-      setElements((prev) => [...prev, newElement]);
-      setMyElements((prev) => [...prev, newElement.id]);
-      broadcastAction({ type: "add", element: newElement });
-    }
-    setTextInput(null);
-  };
+  }, []);
 
   const updateSelectedElementStyle = (updates: Partial<CanvasElement>) => {
     if (selectedElementId) {
@@ -1661,19 +1986,6 @@ export function Canvas({
     }
   };
 
-  // Sync sidebar styling states with the selected element on selection change
-  useEffect(() => {
-    if (selectedElementId) {
-      const el = elements.find((e) => e.id === selectedElementId);
-      if (el) {
-        setStrokeColor(el.strokeColor);
-        setFillColor(el.fillColor);
-        setStrokeWidth(el.strokeWidth);
-        setStrokeStyle(el.strokeStyle);
-      }
-    }
-  }, [selectedElementId]);
-
   const pasteCanvasElement = (copiedEl: CanvasElement) => {
     const newId = `${copiedEl.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newElement: CanvasElement = {
@@ -1681,6 +1993,7 @@ export function Canvas({
       id: newId,
       x: copiedEl.x + 20,
       y: copiedEl.y + 20,
+      pageId: activePageId,
     };
     if (newElement.points) {
       newElement.points = newElement.points.map((p) => ({
@@ -1691,7 +2004,7 @@ export function Canvas({
 
     setElements((prev) => [...prev, newElement]);
     setMyElements((prev) => [...prev, newId]);
-    setSelectedElementId(newId);
+    selectElement(newElement);
     broadcastAction({ type: "add", element: newElement });
   };
 
@@ -1747,11 +2060,12 @@ export function Canvas({
         strokeWidth: 1,
         strokeStyle: "solid",
         dataUrl: compressedDataUrl,
+        pageId: activePageId,
       };
 
       setElements((prev) => [...prev, newElement]);
       setMyElements((prev) => [...prev, newId]);
-      setSelectedElementId(newId);
+      selectElement(newElement);
       broadcastAction({ type: "add", element: newElement });
     };
   };
@@ -1791,13 +2105,24 @@ export function Canvas({
       fillColor: "transparent",
       strokeWidth: strokeWidthRef.current,
       strokeStyle: "solid",
+      pageId: activePageId,
     };
 
     setElements((prev) => [...prev, newElement]);
     setMyElements((prev) => [...prev, newId]);
-    setSelectedElementId(newId);
+    selectElement(newElement);
     broadcastAction({ type: "add", element: newElement });
   };
+
+  const compressAndPasteImageRef = useRef(compressAndPasteImage);
+  const pasteCanvasElementRef = useRef(pasteCanvasElement);
+  const pasteTextAsElementRef = useRef(pasteTextAsElement);
+
+  useEffect(() => {
+    compressAndPasteImageRef.current = compressAndPasteImage;
+    pasteCanvasElementRef.current = pasteCanvasElement;
+    pasteTextAsElementRef.current = pasteTextAsElement;
+  });
 
   useEffect(() => {
     const handleCopy = (e: ClipboardEvent) => {
@@ -1841,7 +2166,7 @@ export function Canvas({
               reader.onload = (event) => {
                 const dataUrl = event.target?.result as string;
                 if (dataUrl) {
-                  compressAndPasteImage(dataUrl);
+                  compressAndPasteImageRef.current(dataUrl);
                 }
               };
               reader.readAsDataURL(file);
@@ -1857,15 +2182,15 @@ export function Canvas({
           const parsed = JSON.parse(text);
           if (parsed && parsed.type === "scrawl-element" && parsed.element) {
             e.preventDefault();
-            pasteCanvasElement(parsed.element);
+            pasteCanvasElementRef.current(parsed.element);
             return;
           }
-        } catch (err) {
+        } catch {
           // Ignore, fallback to pasteTextAsElement
         }
 
         e.preventDefault();
-        pasteTextAsElement(text);
+        pasteTextAsElementRef.current(text);
       }
     };
 
@@ -1894,28 +2219,36 @@ export function Canvas({
   };
 
   const goToLastDrawnPlace = () => {
-    if (elements.length === 0) return;
-    const lastEl = elements[elements.length - 1];
+    const pageElements = elements.filter(
+      (el) => (el.pageId || DEFAULT_PAGE_ID) === activePageId,
+    );
+    if (pageElements.length === 0) return;
+    const lastEl = pageElements[pageElements.length - 1];
     centerOnElement(lastEl);
   };
 
   // Undo / Redo logic
   const handleUndo = () => {
-    if (myElements.length === 0) return;
+    const pageMyElements = myElements.filter((id) => {
+      const el = elements.find((e) => e.id === id);
+      return el && (el.pageId || DEFAULT_PAGE_ID) === activePageId;
+    });
+    if (pageMyElements.length === 0) return;
 
-    // Pop last item we added
-    const newMyElements = [...myElements];
-    const lastId = newMyElements.pop();
-    if (!lastId) return;
+    const lastId = pageMyElements[pageMyElements.length - 1];
+    const newMyElements = myElements.filter((id) => id !== lastId);
 
     const itemToDelete = elements.find((e) => e.id === lastId);
     if (itemToDelete) {
       setRedoStack((r) => [...r, [itemToDelete]]);
-      
-      // Center on the remaining last element on canvas (if any exists)
-      const remainingElements = elements.filter((e) => e.id !== lastId);
-      if (remainingElements.length > 0) {
-        const nextLastElement = remainingElements[remainingElements.length - 1];
+
+      const remainingPageElements = elements.filter(
+        (e) =>
+          e.id !== lastId && (e.pageId || DEFAULT_PAGE_ID) === activePageId,
+      );
+      if (remainingPageElements.length > 0) {
+        const nextLastElement =
+          remainingPageElements[remainingPageElements.length - 1];
         centerOnElement(nextLastElement);
       }
     }
@@ -1946,14 +2279,24 @@ export function Canvas({
   });
 
   const handleClear = () => {
+    const pageElements = elements.filter(
+      (el) => (el.pageId || DEFAULT_PAGE_ID) === activePageId,
+    );
+    if (pageElements.length === 0) return;
     if (
-      window.confirm("Are you sure you want to clear the entire workspace?")
+      window.confirm(
+        `Are you sure you want to clear "${currentPage?.title || "this page"}"?`,
+      )
     ) {
-      elements.forEach((el) => {
+      pageElements.forEach((el) => {
         broadcastAction({ type: "delete", elementId: el.id });
       });
-      setElements([]);
-      setMyElements([]);
+      setElements((prev) =>
+        prev.filter((el) => (el.pageId || DEFAULT_PAGE_ID) !== activePageId),
+      );
+      setMyElements((prev) =>
+        prev.filter((id) => !pageElements.some((el) => el.id === id)),
+      );
       setUndoStack([]);
       setRedoStack([]);
     }
@@ -1986,8 +2329,11 @@ export function Canvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const safeTitle = (currentPage?.title || "page")
+      .toLowerCase()
+      .replace(/\s+/g, "-");
     const link = document.createElement("a");
-    link.download = `scrawl-workspace-${roomId}.png`;
+    link.download = `scrawl-${roomSlug || roomId}-${safeTitle}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   };
@@ -1995,138 +2341,424 @@ export function Canvas({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-dvh overflow-hidden bg-[#FAF8F5] select-none flex flex-col"
+      className="relative w-full h-dvh overflow-hidden bg-[#FAF8F5] select-none flex"
     >
-      {/* Canvas view */}
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full block cursor-crosshair touch-none"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      />
-
-      {/* Floating text edit area */}
-      {textInput && (() => {
-        const editingElement = textInput.editingElementId
-          ? elements.find((el) => el.id === textInput.editingElementId)
-          : null;
-        const currentTextStrokeWidth = editingElement ? editingElement.strokeWidth : strokeWidth;
-        const currentTextStrokeColor = editingElement ? editingElement.strokeColor : strokeColor;
-        return (
-          <div
-            style={{
-              position: "absolute",
-              left: textInput.x * zoom + pan.x,
-              top: textInput.y * zoom + pan.y,
-              transform: "translate(-50%, -50%)",
-              zIndex: 50,
-            }}
-            className="bg-transparent"
+      {/* Notion-style Left Sidebar */}
+      <aside
+        className={`relative z-30 h-full bg-[#F7F5F0] border-r border-[#E5E0D8] flex flex-col transition-all duration-200 ease-in-out shrink-0 select-none ${
+          isSidebarOpen ? "w-64" : "w-0 -translate-x-full overflow-hidden border-r-0"
+        }`}
+      >
+        {/* Workspace / Room Header */}
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#E5E0D8]/60 bg-[#F7F5F0]">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base select-none">📜</span>
+            <div className="flex flex-col min-w-0">
+              <span
+                className="font-semibold text-xs text-[#1E1E1E] truncate max-w-[130px]"
+                title={roomSlug || (roomId === "guest" ? "Guest Space" : roomId)}
+              >
+                {roomSlug || (roomId === "guest" ? "Guest Space" : roomId)}
+              </span>
+              <span className="text-[10px] text-[#A19D94] font-mono leading-none">
+                {isReadOnly ? "Read-Only" : "Workspace"}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            title="Collapse sidebar"
+            className="p-1 rounded text-[#706B5F] hover:bg-[#EAE5DD] hover:text-[#1E1E1E] transition-colors"
           >
-            <textarea
-              ref={textInputRef}
-              className="bg-transparent border border-[#FAF8F5] outline-none text-[#1E1E1E] font-mono resize-none p-1"
-              wrap="off"
-              style={{
-                fontSize: `${currentTextStrokeWidth * 12 * zoom}px`,
-                lineHeight: 1.25,
-                color: currentTextStrokeColor,
-                width: `${Math.max(
-                  250,
-                  textInput.text
-                    .split("\n")
-                    .reduce((max, line) => Math.max(max, line.length), 0) *
-                    (currentTextStrokeWidth * 12 * 0.6) *
-                    zoom +
-                    30,
-                )}px`,
-                height: `${Math.max(
-                  100,
-                  textInput.text.split("\n").length *
-                    (currentTextStrokeWidth * 12 * 1.25) *
-                    zoom +
-                    30,
-                )}px`,
-              }}
-              value={textInput.text}
-              onChange={(e) =>
-                setTextInput({ ...textInput, text: e.target.value })
-              }
-              onBlur={commitTextInput}
-              placeholder="Type drawing text..."
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Page Search */}
+        <div className="px-3 py-2 border-b border-[#E5E0D8]/40">
+          <div className="relative flex items-center">
+            <Search className="w-3.5 h-3.5 text-[#A19D94] absolute left-2.5 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search pages..."
+              value={pageSearchQuery}
+              onChange={(e) => setPageSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-2 py-1 text-xs bg-white/70 border border-[#E5E0D8] rounded-md text-[#1E1E1E] placeholder:text-[#A19D94] focus:outline-none focus:border-[#D95F4D] transition-colors font-sans"
             />
           </div>
-        );
-      })()}
+        </div>
 
-      {/* Toolbar - Floating bottom */}
-      <div className="absolute bottom-6 md:bottom-4 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
-        <div className="flex items-center h-8.5 gap-0.5 md:gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
-          {[
-            { id: "select", icon: MousePointer, label: "Select (V)" },
-            { id: "hand", icon: Hand, label: "Pan (H)" },
-            { id: "rect", icon: Square, label: "Rectangle (R)" },
-            { id: "ellipse", icon: Circle, label: "Circle (O)" },
-            { id: "triangle", icon: Triangle, label: "Triangle (I)" },
-            { id: "rhombus", icon: Diamond, label: "Rhombus (G)" },
-            { id: "line", icon: Minus, label: "Line (L)" },
-            { id: "arrow", icon: ArrowRight, label: "Arrow (A)" },
-            { id: "pencil", icon: Pencil, label: "Pencil (P)" },
-            { id: "text", icon: Type, label: "Text (T)" },
-            { id: "eraser", icon: Eraser, label: "Eraser (E)" },
-          ]
-            .filter((t) => !isReadOnly || t.id === "select" || t.id === "hand")
-            .map((t) => {
-              const IconComp = t.icon;
-              const isActive = tool === t.id;
+        {/* Pages Header */}
+        <div className="px-3 pt-3 pb-1 flex items-center justify-between text-[10px] font-mono font-bold tracking-wider uppercase text-[#A19D94]">
+          <span>Pages ({pages.length})</span>
+          {!isReadOnly && (
+            <button
+              onClick={() => handleCreatePage()}
+              title="Add a page"
+              className="p-1 rounded hover:bg-[#EAE5DD] text-[#706B5F] hover:text-[#1E1E1E] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Scrollable Page List */}
+        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 scrollbar-thin">
+          {pages
+            .filter((p) =>
+              p.title.toLowerCase().includes(pageSearchQuery.toLowerCase()),
+            )
+            .map((p) => {
+              const isActive = p.id === activePageId;
+              const count = elements.filter(
+                (el) => (el.pageId || DEFAULT_PAGE_ID) === p.id,
+              ).length;
               return (
-                <Button
-                  key={t.id}
-                  variant={isActive ? "active" : "ghost"}
-                  size="icon"
-                  className="relative group transition-all !h-7 !w-7"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setTool(t.id as Tool);
-                    setSelectedElementId(null);
-                  }}
-                  title={t.label}
+                <div
+                  key={p.id}
+                  onClick={() => handleSwitchPage(p.id)}
+                  className={`group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-all ${
+                    isActive
+                      ? "bg-[#EAE5DD] text-[#1E1E1E] font-medium shadow-sm"
+                      : "text-[#706B5F] hover:bg-[#EFECE6] hover:text-[#1E1E1E]"
+                  }`}
                 >
-                  <IconComp className="h-[14px] w-[14px]" />
-                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
-                    {t.label}
-                  </span>
-                </Button>
+                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-1">
+                    <span className="text-sm select-none shrink-0">
+                      {p.icon || "📄"}
+                    </span>
+                    {editingPageId === p.id ? (
+                      <input
+                        autoFocus
+                        value={editingPageTitle}
+                        onChange={(e) => setEditingPageTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            handleRenamePage(p.id, editingPageTitle);
+                          if (e.key === "Escape") setEditingPageId(null);
+                        }}
+                        onBlur={() => handleRenamePage(p.id, editingPageTitle)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white px-1.5 py-0.5 text-xs rounded border border-[#D95F4D] text-[#1E1E1E] outline-none w-28"
+                      />
+                    ) : (
+                      <span
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          if (!isReadOnly) {
+                            setEditingPageId(p.id);
+                            setEditingPageTitle(p.title);
+                          }
+                        }}
+                        className="truncate"
+                        title={p.title}
+                      >
+                        {p.title}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions / Element Count badge */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                        isActive
+                          ? "bg-white/80 text-[#1E1E1E]"
+                          : "bg-[#E5E0D8]/60 text-[#706B5F]"
+                      } group-hover:hidden`}
+                    >
+                      {count}
+                    </span>
+                    {!isReadOnly && (
+                      <div
+                        className="hidden group-hover:flex items-center gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          title="Rename page"
+                          onClick={() => {
+                            setEditingPageId(p.id);
+                            setEditingPageTitle(p.title);
+                          }}
+                          className="p-1 rounded hover:bg-white text-[#706B5F] hover:text-[#1E1E1E] transition-colors"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          title="Duplicate page"
+                          onClick={() => handleDuplicatePage(p.id)}
+                          className="p-1 rounded hover:bg-white text-[#706B5F] hover:text-[#1E1E1E] transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                        {pages.length > 1 && (
+                          <button
+                            title="Delete page"
+                            onClick={() => handleDeletePage(p.id)}
+                            className="p-1 rounded hover:bg-white text-[#D95F4D] hover:bg-[#D95F4D]/10 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
         </div>
-      </div>
 
-      {/* Top Left Navigation & Styles Toggle */}
-      <div className="absolute top-6 left-6 z-20 flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => router.push("/")}
-          className="flex items-center gap-1 font-mono text-[10px] h-7 px-2 shadow-sm bg-white"
-        >
-          <Home className="h-[14px] w-[14px]" />
-          <span className="hidden sm:inline">HOME</span>
-        </Button>
+        {/* Sidebar Footer */}
+        <div className="p-2 border-t border-[#E5E0D8]/60 bg-[#F7F5F0]">
+          {!isReadOnly && (
+            <button
+              onClick={() => handleCreatePage()}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#706B5F] hover:text-[#1E1E1E] hover:bg-[#EAE5DD] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#D95F4D]" />
+              <span>Add a page</span>
+            </button>
+          )}
+        </div>
+      </aside>
 
-        {!isReadOnly && (
+      {/* Main Canvas Area */}
+      <div className="relative flex-1 h-full overflow-hidden flex flex-col">
+        {/* Canvas view */}
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full block cursor-crosshair touch-none"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+        />
+
+        {/* Floating text edit area */}
+        {textInput && (() => {
+          const editingElement = textInput.editingElementId
+            ? elements.find((el) => el.id === textInput.editingElementId)
+            : null;
+          const currentTextStrokeWidth = editingElement ? editingElement.strokeWidth : strokeWidth;
+          const currentTextStrokeColor = editingElement ? editingElement.strokeColor : strokeColor;
+          return (
+            <div
+              style={{
+                position: "absolute",
+                left: textInput.x * zoom + pan.x,
+                top: textInput.y * zoom + pan.y,
+                transform: "translate(-50%, -50%)",
+                zIndex: 50,
+              }}
+              className="bg-transparent"
+            >
+              <textarea
+                ref={textInputRef}
+                className="bg-transparent border border-[#FAF8F5] outline-none text-[#1E1E1E] font-mono resize-none p-1"
+                wrap="off"
+                style={{
+                  fontSize: `${currentTextStrokeWidth * 12 * zoom}px`,
+                  lineHeight: 1.25,
+                  color: currentTextStrokeColor,
+                  width: `${Math.max(
+                    250,
+                    textInput.text
+                      .split("\n")
+                      .reduce((max, line) => Math.max(max, line.length), 0) *
+                      (currentTextStrokeWidth * 12 * 0.6) *
+                      zoom +
+                      30,
+                  )}px`,
+                  height: `${Math.max(
+                    100,
+                    textInput.text.split("\n").length *
+                      (currentTextStrokeWidth * 12 * 1.25) *
+                      zoom +
+                      30,
+                  )}px`,
+                }}
+                value={textInput.text}
+                onChange={(e) =>
+                  setTextInput({ ...textInput, text: e.target.value })
+                }
+                onBlur={commitTextInput}
+                placeholder="Type drawing text..."
+              />
+            </div>
+          );
+        })()}
+
+        {/* Toolbar - Floating bottom */}
+        <div className="absolute bottom-6 md:bottom-4 left-0 right-0 z-10 flex justify-center px-4 pointer-events-none">
+          <div className="flex items-center h-8.5 gap-0.5 md:gap-1 bg-[#FAF8F5] border border-[#E5E0D8] px-1 rounded-xl shadow-[0_4px_16px_rgba(229,224,216,0.3)] max-w-full overflow-x-auto scrollbar-none whitespace-nowrap pointer-events-auto">
+            {[
+              { id: "select", icon: MousePointer, label: "Select (V)" },
+              { id: "hand", icon: Hand, label: "Pan (H)" },
+              { id: "rect", icon: Square, label: "Rectangle (R)" },
+              { id: "ellipse", icon: Circle, label: "Circle (O)" },
+              { id: "triangle", icon: Triangle, label: "Triangle (I)" },
+              { id: "rhombus", icon: Diamond, label: "Rhombus (G)" },
+              { id: "line", icon: Minus, label: "Line (L)" },
+              { id: "arrow", icon: ArrowRight, label: "Arrow (A)" },
+              { id: "pencil", icon: Pencil, label: "Pencil (P)" },
+              { id: "text", icon: Type, label: "Text (T)" },
+              { id: "eraser", icon: Eraser, label: "Eraser (E)" },
+            ]
+              .filter((t) => !isReadOnly || t.id === "select" || t.id === "hand")
+              .map((t) => {
+                const IconComp = t.icon;
+                const isActive = tool === t.id;
+                return (
+                  <Button
+                    key={t.id}
+                    variant={isActive ? "active" : "ghost"}
+                    size="icon"
+                    className="relative group transition-all !h-7 !w-7"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setTool(t.id as Tool);
+                      setSelectedElementId(null);
+                    }}
+                    title={t.label}
+                  >
+                    <IconComp className="h-[14px] w-[14px]" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-[#1E1E1E] text-white text-[10px] py-1 px-2 rounded whitespace-nowrap font-mono">
+                      {t.label}
+                    </span>
+                  </Button>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* Top Left Navigation: Sidebar toggle + Home + Breadcrumb page switcher */}
+        <div className="absolute top-6 left-6 z-20 flex items-center gap-2">
+          {!isSidebarOpen && (
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => setIsSidebarOpen(true)}
+              className="!h-7 !w-7 shadow-sm bg-white"
+              title="Open sidebar"
+            >
+              <PanelLeftOpen className="h-[14px] w-[14px]" />
+            </Button>
+          )}
+
           <Button
-            variant={showMobileStyles ? "active" : "secondary"}
+            variant="secondary"
             size="sm"
-            onClick={() => setShowMobileStyles(!showMobileStyles)}
-            className="md:hidden flex items-center gap-1 font-mono text-[10px] h-7 px-2 bg-white"
+            onClick={() => router.push("/")}
+            className="flex items-center gap-1 font-mono text-[10px] h-7 px-2 shadow-sm bg-white"
           >
-            <Sparkles className="h-[14px] w-[14px] text-[#D95F4D]" />
-            Styles
+            <Home className="h-[14px] w-[14px]" />
+            <span className="hidden sm:inline">HOME</span>
           </Button>
-        )}
-      </div>
+
+          {/* Notion-style Page Breadcrumb & Quick Switcher */}
+          <div className="relative">
+            <button
+              onClick={() => setIsPageSwitcherOpen(!isPageSwitcherOpen)}
+              className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white border border-[#E5E0D8] text-xs text-[#1E1E1E] hover:bg-[#F7F5F0] shadow-sm transition-colors font-medium select-none"
+              title="Switch page"
+            >
+              <span className="text-xs">{currentPage?.icon || "📄"}</span>
+              <span className="truncate max-w-[100px] sm:max-w-[160px]">
+                {currentPage?.title || "Page"}
+              </span>
+              <ChevronDown className="w-3 h-3 text-[#706B5F]" />
+            </button>
+
+            {isPageSwitcherOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsPageSwitcherOpen(false)}
+                />
+                <div className="absolute top-full left-0 mt-1.5 w-56 bg-white border border-[#E5E0D8] rounded-xl shadow-[0_8px_24px_rgba(30,30,30,0.12)] p-1 z-40 max-h-72 overflow-y-auto">
+                  <div className="px-2 py-1 text-[10px] font-mono font-bold tracking-wider uppercase text-[#A19D94] border-b border-[#E5E0D8]/60 mb-1">
+                    Jump to page
+                  </div>
+                  {pages.map((p) => {
+                    const isSelected = p.id === activePageId;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          handleSwitchPage(p.id);
+                          setIsPageSwitcherOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors ${
+                          isSelected
+                            ? "bg-[#EAE5DD] text-[#1E1E1E] font-medium"
+                            : "text-[#706B5F] hover:bg-[#F7F5F0] hover:text-[#1E1E1E]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span>{p.icon || "📄"}</span>
+                          <span className="truncate">{p.title}</span>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-[#D95F4D] shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                  {!isReadOnly && (
+                    <div className="mt-1 pt-1 border-t border-[#E5E0D8]/60">
+                      <button
+                        onClick={() => {
+                          handleCreatePage();
+                          setIsPageSwitcherOpen(false);
+                        }}
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-[#D95F4D] hover:bg-[#FAF8F5] transition-colors font-medium"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add new page</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Quick Prev / Next Page controls */}
+          {pages.length > 1 && (
+            <div className="flex items-center bg-white border border-[#E5E0D8] rounded-md h-7 px-0.5 shadow-sm">
+              <button
+                disabled={currentIndex <= 0}
+                onClick={handlePrevPage}
+                title="Previous page"
+                className="p-1 rounded text-[#706B5F] hover:text-[#1E1E1E] disabled:opacity-25 disabled:hover:text-[#706B5F] transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[10px] font-mono px-1 text-[#706B5F] select-none">
+                {currentIndex + 1}/{pages.length}
+              </span>
+              <button
+                disabled={currentIndex >= pages.length - 1}
+                onClick={handleNextPage}
+                title="Next page"
+                className="p-1 rounded text-[#706B5F] hover:text-[#1E1E1E] disabled:opacity-25 disabled:hover:text-[#706B5F] transition-colors"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {!isReadOnly && (
+            <Button
+              variant={showMobileStyles ? "active" : "secondary"}
+              size="sm"
+              onClick={() => setShowMobileStyles(!showMobileStyles)}
+              className="md:hidden flex items-center gap-1 font-mono text-[10px] h-7 px-2 bg-white"
+            >
+              <Sparkles className="h-[14px] w-[14px] text-[#D95F4D]" />
+              Styles
+            </Button>
+          )}
+        </div>
 
       {/* Read-Only archive indicator */}
       {isReadOnly && (
@@ -2408,7 +3040,7 @@ export function Canvas({
           variant="ghost"
           size="icon"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setIsCanvasLocked(!isCanvasLocked)}
+          onClick={toggleCanvasLock}
           className={`!h-7 !w-7 transition-colors ${
             isCanvasLocked ? "text-[#D95F4D]" : "text-[#706B5F]"
           }`}
@@ -2510,6 +3142,7 @@ export function Canvas({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

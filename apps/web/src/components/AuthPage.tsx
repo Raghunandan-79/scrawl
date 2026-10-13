@@ -58,12 +58,16 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
           setError(response.data?.message || "Registration failed. Try again.");
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(
-        err.response?.data?.message ||
-          "An unexpected error occurred. Please try again.",
-      );
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(
+          err.response?.data?.message ||
+            "An unexpected error occurred. Please try again.",
+        );
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

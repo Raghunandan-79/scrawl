@@ -8,10 +8,15 @@ export function useSocket() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    let active = true;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
-      setError("No token found. Please sign in.");
-      setLoading(false);
+      queueMicrotask(() => {
+        if (active) {
+          setError("No token found. Please sign in.");
+          setLoading(false);
+        }
+      });
       return;
     }
 
@@ -23,7 +28,7 @@ export function useSocket() {
       if (ws) {
         try {
           ws.close();
-        } catch (e) {}
+        } catch {}
       }
 
       ws = new WebSocket(`${WS_URL}?token=${token}`);
@@ -67,6 +72,7 @@ export function useSocket() {
     connect();
 
     return () => {
+      active = false;
       if (pingInterval) clearInterval(pingInterval);
       if (reconnectTimeoutRef.current)
         clearTimeout(reconnectTimeoutRef.current);

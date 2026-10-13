@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { BACKEND_URL } from "../app/config";
@@ -16,23 +16,31 @@ import {
 } from "lucide-react";
 
 
+interface RoomItem {
+  id: number;
+  slug: string;
+  createdAt: string;
+}
+
 export default function LandingClient() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
+  const token = React.useSyncExternalStore(
+    (callback) => {
+      window.addEventListener("storage", callback);
+      return () => window.removeEventListener("storage", callback);
+    },
+    () => (typeof window !== "undefined" ? localStorage.getItem("token") : null),
+    () => null,
+  );
   const [roomSlug, setRoomSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [rooms, setRooms] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
-  useEffect(() => {
-    const t = localStorage.getItem("token");
-    setToken(t);
-  }, []);
-
   const fetchRooms = async () => {
-    const storedToken = localStorage.getItem("token");
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!storedToken) return;
     setLoadingRooms(true);
     try {
@@ -45,6 +53,11 @@ export default function LandingClient() {
     } finally {
       setLoadingRooms(false);
     }
+  };
+
+  const openModal = () => {
+    setIsModalOpen(true);
+    fetchRooms();
   };
 
   const handleDeleteRoom = async (roomId: number, e: React.MouseEvent) => {
@@ -63,17 +76,14 @@ export default function LandingClient() {
         headers: { token: storedToken },
       });
       fetchRooms();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to delete room:", err);
-      alert(err.response?.data?.message || "Could not delete room.");
+      const message = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message
+        : undefined;
+      alert(message || "Could not delete room.");
     }
   };
-
-  useEffect(() => {
-    if (isModalOpen && token) {
-      fetchRooms();
-    }
-  }, [isModalOpen, token]);
 
   const handleCreateOrJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,19 +111,22 @@ export default function LandingClient() {
             },
           },
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         // If room already exists, ignore 411 and redirect directly
-        if (err.response?.status !== 411) {
+        if (!axios.isAxiosError(err) || err.response?.status !== 411) {
           throw err;
         }
       }
 
       router.push(`/canvas/${slug}`);
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      const message = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message
+        : undefined;
       setError(
-        err.response?.data?.message ||
+        message ||
           "An error occurred while opening the workspace. Ensure you are signed in.",
       );
     } finally {
@@ -123,7 +136,7 @@ export default function LandingClient() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    setToken(null);
+    window.dispatchEvent(new Event("storage"));
     router.refresh();
   };
 
@@ -155,10 +168,13 @@ export default function LandingClient() {
       } else {
         setError("Failed to create canvas workspace.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      const message = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message
+        : undefined;
       setError(
-        err.response?.data?.message ||
+        message ||
           "Could not generate random canvas workspace. Ensure you are signed in.",
       );
     } finally {
@@ -200,7 +216,7 @@ export default function LandingClient() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setIsModalOpen(true)}
+                onClick={openModal}
                 className="font-mono text-[10px] font-bold tracking-wider py-1.5 px-3"
               >
                 MY PAGES
@@ -261,7 +277,7 @@ export default function LandingClient() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setIsModalOpen(true)}
+              onClick={openModal}
               className="font-mono font-bold tracking-wider py-2 px-5 text-xs uppercase"
             >
               Open Custom Workspace
@@ -435,7 +451,7 @@ export default function LandingClient() {
         <button
           onClick={() => {
             if (token) {
-              setIsModalOpen(true);
+              openModal();
             } else {
               router.push("/signup");
             }

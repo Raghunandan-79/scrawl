@@ -3,6 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
+declare global {
+  interface Window {
+    __storageQuotaExceeded?: boolean;
+    __triggerStorageFullToast?: () => void;
+  }
+}
+
 export function LocalStorageToast() {
   const [isFull, setIsFull] = useState(false);
 
@@ -13,7 +20,7 @@ export function LocalStorageToast() {
     try {
       const test = window.localStorage;
       storageAvailable = !!test;
-    } catch (e) {
+    } catch {
       storageAvailable = false;
     }
 
@@ -24,7 +31,7 @@ export function LocalStorageToast() {
     window.addEventListener("localstorage-full", handleStorageFull);
 
     if (!storageAvailable) {
-      (window as any).__storageQuotaExceeded = true;
+      window.__storageQuotaExceeded = true;
       window.dispatchEvent(new CustomEvent("localstorage-full"));
       return;
     }
@@ -66,19 +73,22 @@ export function LocalStorageToast() {
 
     // Run initial checks
     if (checkStorageFull()) {
-      (window as any).__storageQuotaExceeded = true;
+      window.__storageQuotaExceeded = true;
       window.dispatchEvent(new CustomEvent("localstorage-full"));
     }
 
     if (navigator.storage && navigator.storage.estimate) {
-      navigator.storage.estimate().then((estimate) => {
-        if (estimate.usage !== undefined && estimate.quota !== undefined) {
-          if (estimate.usage >= estimate.quota) {
-            (window as any).__storageQuotaExceeded = true;
-            window.dispatchEvent(new CustomEvent("localstorage-full"));
+      navigator.storage
+        .estimate()
+        .then((estimate) => {
+          if (estimate.usage !== undefined && estimate.quota !== undefined) {
+            if (estimate.usage >= estimate.quota) {
+              window.__storageQuotaExceeded = true;
+              window.dispatchEvent(new CustomEvent("localstorage-full"));
+            }
           }
-        }
-      }).catch(() => {});
+        })
+        .catch(() => {});
     }
 
     // Keep reference to the original functions
@@ -86,7 +96,7 @@ export function LocalStorageToast() {
     const originalSessionSetItem = sessionStorage.setItem;
 
     localStorage.setItem = function (key, value) {
-      if ((window as any).__storageQuotaExceeded) {
+      if (window.__storageQuotaExceeded) {
         return;
       }
       try {
@@ -99,7 +109,7 @@ export function LocalStorageToast() {
             e.name === "QuotaExceededError" ||
             e.name === "NS_ERROR_DOM_QUOTA_REACHED")
         ) {
-          (window as any).__storageQuotaExceeded = true;
+          window.__storageQuotaExceeded = true;
           window.dispatchEvent(new CustomEvent("localstorage-full"));
           return;
         }
@@ -108,7 +118,7 @@ export function LocalStorageToast() {
     };
 
     sessionStorage.setItem = function (key, value) {
-      if ((window as any).__storageQuotaExceeded) {
+      if (window.__storageQuotaExceeded) {
         return;
       }
       try {
@@ -121,7 +131,7 @@ export function LocalStorageToast() {
             e.name === "QuotaExceededError" ||
             e.name === "NS_ERROR_DOM_QUOTA_REACHED")
         ) {
-          (window as any).__storageQuotaExceeded = true;
+          window.__storageQuotaExceeded = true;
           window.dispatchEvent(new CustomEvent("localstorage-full"));
           return;
         }
@@ -130,8 +140,8 @@ export function LocalStorageToast() {
     };
 
     // Expose a test hook to trigger the toast manually and block writes
-    (window as any).__triggerStorageFullToast = () => {
-      (window as any).__storageQuotaExceeded = true;
+    window.__triggerStorageFullToast = () => {
+      window.__storageQuotaExceeded = true;
       window.dispatchEvent(new CustomEvent("localstorage-full"));
     };
 

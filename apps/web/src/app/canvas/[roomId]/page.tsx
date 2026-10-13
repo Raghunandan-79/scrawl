@@ -5,7 +5,7 @@ import axios from "axios";
 import { useParams, useRouter } from "next/navigation";
 import { BACKEND_URL } from "../../config";
 import { Canvas } from "@/components/Canvas";
-import { CanvasElement } from "@/components/canvas-types";
+import { CanvasElement, CanvasPage, CanvasAction, DEFAULT_PAGE_ID, DEFAULT_PAGE_TITLE, DEFAULT_PAGE_ICON } from "@/components/canvas-types";
 import { Button } from "@repo/ui/button";
 
 export default function CanvasRoomPage() {
@@ -16,6 +16,7 @@ export default function CanvasRoomPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initialElements, setInitialElements] = useState<CanvasElement[]>([]);
+  const [initialPages, setInitialPages] = useState<CanvasPage[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(true);
   const [resolvedRoomId, setResolvedRoomId] = useState<string>("");
   const [resolvedRoomSlug, setResolvedRoomSlug] = useState<string>("");
@@ -65,6 +66,13 @@ export default function CanvasRoomPage() {
         let activeRoomSlug = "";
         let readMode = true;
 
+        const defaultPage: CanvasPage = {
+          id: DEFAULT_PAGE_ID,
+          title: DEFAULT_PAGE_TITLE,
+          icon: DEFAULT_PAGE_ICON,
+          createdAt: 1,
+        };
+
         if (isGuest) {
           activeRoomId = "guest";
           activeRoomSlug = "guest";
@@ -73,11 +81,17 @@ export default function CanvasRoomPage() {
           migrateOldStorageKeys(activeRoomId);
 
           let stored = null;
+          let storedPages = null;
           try {
             stored = localStorage.getItem("guest_canvas_elements");
-          } catch (e) {}
+            storedPages = localStorage.getItem("guest_canvas_pages");
+          } catch {}
 
-          setInitialElements(stored ? JSON.parse(stored) : []);
+          const elements: CanvasElement[] = stored ? JSON.parse(stored) : [];
+          const pages: CanvasPage[] = storedPages ? JSON.parse(storedPages) : [defaultPage];
+
+          setInitialElements(elements);
+          setInitialPages(pages.length > 0 ? pages : [defaultPage]);
           setResolvedRoomId(activeRoomId);
           setResolvedRoomSlug(activeRoomSlug);
           setIsReadOnly(readMode);
@@ -112,15 +126,23 @@ export default function CanvasRoomPage() {
         migrateOldStorageKeys(activeRoomId);
 
         const storageKey = `scrawl_elements_${activeRoomId}`;
+        const pagesKey = `scrawl_pages_${activeRoomId}`;
         let stored = null;
+        let storedPages = null;
         try {
           stored = localStorage.getItem(storageKey);
-        } catch (e) {}
+          storedPages = localStorage.getItem(pagesKey);
+        } catch {}
 
         if (stored) {
           try {
             setInitialElements(JSON.parse(stored));
-          } catch (e) {}
+            if (storedPages) {
+              setInitialPages(JSON.parse(storedPages));
+            } else {
+              setInitialPages([defaultPage]);
+            }
+          } catch {}
           setError(null);
           setLoading(false); // Optimistically load cache first
         }
@@ -136,42 +158,77 @@ export default function CanvasRoomPage() {
             },
           );
 
-          const rawChats = response.data?.messages || [];
+          const rawChats: Array<{ message: string }> = response.data?.messages || [];
           const chronologicalChats = [...rawChats].reverse();
 
           const elementsMap: Record<string, CanvasElement> = {};
-          chronologicalChats.forEach((msg: any) => {
+          const pagesMap: Record<string, CanvasPage> = {};
+
+          chronologicalChats.forEach((msg) => {
             try {
-              const action = JSON.parse(msg.message);
-              if (action.type === "add" && action.element) {
-                elementsMap[action.element.id] = action.element;
+              const action: CanvasAction = JSON.parse(msg.message);
+              if (action.type === "page_create" && action.page) {
+                pagesMap[action.page.id] = action.page;
+              } else if (action.type === "page_update" && action.page) {
+                if (pagesMap[action.page.id]) {
+                  pagesMap[action.page.id] = { ...pagesMap[action.page.id], ...action.page };
+                }
+              } else if (action.type === "page_delete" && action.pageId) {
+                delete pagesMap[action.pageId];
+                for (const elId of Object.keys(elementsMap)) {
+                  if (elementsMap[elId].pageId === action.pageId) {
+                    delete elementsMap[elId];
+                  }
+                }
+              } else if (action.type === "page_duplicate" && action.newPage) {
+                pagesMap[action.newPage.id] = action.newPage;
+                if (action.elements) {
+                  action.elements.forEach((el) => {
+                    elementsMap[el.id] = el;
+                  });
+                }
+              } else if (action.type === "add" && action.element) {
+                const el = { ...action.element, pageId: action.element.pageId || DEFAULT_PAGE_ID };
+                elementsMap[el.id] = el;
               } else if (action.type === "update" && action.element) {
-                elementsMap[action.element.id] = action.element;
+                const el = { ...action.element, pageId: action.element.pageId || DEFAULT_PAGE_ID };
+                elementsMap[el.id] = el;
               } else if (action.type === "delete" && action.elementId) {
                 delete elementsMap[action.elementId];
               }
-            } catch (e) {}
+            } catch {}
           });
 
+          if (Object.keys(pagesMap).length === 0) {
+            pagesMap[defaultPage.id] = defaultPage;
+          }
+
+          const fetchedPages = Object.values(pagesMap).sort((a, b) => a.createdAt - b.createdAt);
           const fetchedElements = Object.values(elementsMap);
+
+          setInitialPages(fetchedPages);
           setInitialElements(fetchedElements);
+
           try {
             localStorage.setItem(storageKey, JSON.stringify(fetchedElements));
-          } catch (e) {}
+            localStorage.setItem(pagesKey, JSON.stringify(fetchedPages));
+          } catch {}
           setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error("Failed to load room drawing history from server:", err);
           if (!stored) {
-            setError(
-              err.response?.data?.message || "Could not retrieve drawing history.",
-            );
+            const message = axios.isAxiosError<{ message?: string }>(err)
+              ? err.response?.data?.message
+              : undefined;
+            setError(message || "Could not retrieve drawing history.");
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to resolve workspace:", err);
-        setError(
-          err.response?.data?.message || "Could not retrieve drawing history.",
-        );
+        const message = axios.isAxiosError<{ message?: string }>(err)
+          ? err.response?.data?.message
+          : undefined;
+        setError(message || "Could not retrieve drawing history.");
       } finally {
         setLoading(false);
       }
@@ -217,6 +274,7 @@ export default function CanvasRoomPage() {
         roomId={resolvedRoomId}
         roomSlug={resolvedRoomSlug}
         initialElements={initialElements}
+        initialPages={initialPages}
         isReadOnly={isReadOnly}
       />
     </div>

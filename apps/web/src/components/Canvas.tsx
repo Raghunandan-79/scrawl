@@ -12,6 +12,10 @@ import {
   DEFAULT_PAGE_TITLE,
   DEFAULT_PAGE_ICON,
 } from "./canvas-types";
+import {
+  getAutoPageName,
+  sanitizePageTitle,
+} from "./canvas-page-utils";
 import { renderElement } from "./canvas-renderer";
 import { useSocket } from "../app/hooks/useSocket";
 import { Button } from "@repo/ui/button";
@@ -78,15 +82,21 @@ export function Canvas({
 
   // Pages state for Notion-style multiple pages
   const [pages, setPages] = useState<CanvasPage[]>(() => {
-    if (initialPages && initialPages.length > 0) return initialPages;
-    return [
-      {
-        id: DEFAULT_PAGE_ID,
-        title: DEFAULT_PAGE_TITLE,
-        icon: DEFAULT_PAGE_ICON,
-        createdAt: 1,
-      },
-    ];
+    const rawPages =
+      initialPages && initialPages.length > 0
+        ? initialPages
+        : [
+            {
+              id: DEFAULT_PAGE_ID,
+              title: DEFAULT_PAGE_TITLE,
+              icon: DEFAULT_PAGE_ICON,
+              createdAt: 1,
+            },
+          ];
+    return rawPages.map((p) => ({
+      ...p,
+      title: sanitizePageTitle(p.title),
+    }));
   });
   const [activePageId, setActivePageId] = useState<string>(() => {
     return initialPages && initialPages.length > 0
@@ -196,6 +206,18 @@ export function Canvas({
   useEffect(() => {
     elementsRef.current = elements;
   }, [elements]);
+
+  const pagesRef = useRef(pages);
+  useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
+
+  const activePageIdRef = useRef(activePageId);
+  useEffect(() => {
+    activePageIdRef.current = activePageId;
+  }, [activePageId]);
+
+  const typingAutoNameTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const lastMouseClientPos = useRef<Point>({ x: 0, y: 0 });
 
@@ -421,9 +443,13 @@ export function Canvas({
   useEffect(() => {
     if (initialPages && initialPages.length > 0) {
       queueMicrotask(() => {
-        setPages(initialPages);
+        const sanitized = initialPages.map((p) => ({
+          ...p,
+          title: sanitizePageTitle(p.title),
+        }));
+        setPages(sanitized);
         setActivePageId((current) =>
-          initialPages.some((p) => p.id === current) ? current : initialPages[0].id,
+          sanitized.some((p) => p.id === current) ? current : sanitized[0].id,
         );
       });
     }
@@ -448,6 +474,65 @@ export function Canvas({
       }
     },
     [isReadOnly, socket, loading, roomId],
+  );
+
+  // Automatically update page title according to typed first word or drawn shape (no numbers)
+  const autoUpdatePageTitle = useCallback(
+    (currentElements: CanvasElement[], tempText?: string | null) => {
+      if (isReadOnly) return;
+      const targetPageId = activePageIdRef.current;
+      const targetPage = pagesRef.current.find((p) => p.id === targetPageId);
+      if (!targetPage || targetPage.isCustomTitle) return;
+
+      const pageEls = currentElements.filter(
+        (el) => (el.pageId || DEFAULT_PAGE_ID) === targetPageId,
+      );
+
+      const autoName = getAutoPageName(pageEls, tempText);
+      const newTitle = autoName ? autoName.title : DEFAULT_PAGE_TITLE;
+      const newIcon = autoName ? autoName.icon : (targetPage.icon || DEFAULT_PAGE_ICON);
+      const sanitizedTitle = sanitizePageTitle(newTitle);
+
+      if (
+        sanitizedTitle !== targetPage.title ||
+        (newIcon && newIcon !== targetPage.icon)
+      ) {
+        const updatedPage: CanvasPage = {
+          ...targetPage,
+          title: sanitizedTitle,
+          icon: newIcon,
+          updatedAt: Date.now(),
+        };
+
+        setPages((prev) =>
+          prev.map((p) => (p.id === targetPageId ? updatedPage : p)),
+        );
+
+        broadcastAction({
+          type: "page_update",
+          page: updatedPage,
+        });
+      }
+    },
+    [isReadOnly, broadcastAction],
+  );
+
+  const handleTypingAutoName = useCallback(
+    (val: string) => {
+      if (typingAutoNameTimerRef.current) {
+        clearTimeout(typingAutoNameTimerRef.current);
+      }
+
+      if (/\s/.test(val)) {
+        autoUpdatePageTitle(elementsRef.current, val);
+        return;
+      }
+
+      typingAutoNameTimerRef.current = setTimeout(() => {
+        autoUpdatePageTitle(elementsRef.current, val);
+      }, 300);
+    },
+    [autoUpdatePageTitle],
   );
 
   // Process canvas action from collab partners
@@ -674,14 +759,15 @@ export function Canvas({
   // Page manipulation methods
   const handleCreatePage = (customTitle?: string) => {
     if (isReadOnly) return;
-    const pageNumber = pages.length + 1;
+    const sanitizedTitle = customTitle ? sanitizePageTitle(customTitle) : "";
     const icons = ["📄", "📝", "🎨", "💡", "🚀", "📐", "📊", "⚡", "🎯", "🧠"];
     const randomIcon = icons[pages.length % icons.length];
     const newPage: CanvasPage = {
       id: `page-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      title: customTitle || `Page ${pageNumber}`,
+      title: sanitizedTitle || DEFAULT_PAGE_TITLE,
       icon: randomIcon,
       createdAt: Date.now(),
+      isCustomTitle: !!sanitizedTitle,
     };
 
     setPages((prev) => [...prev, newPage]);
@@ -698,14 +784,45 @@ export function Canvas({
   };
 
   const handleRenamePage = (pageId: string, newTitle: string) => {
-    if (isReadOnly || !newTitle.trim()) {
+    if (isReadOnly) {
       setEditingPageId(null);
       return;
     }
-    const trimmed = newTitle.trim();
+    const sanitized = newTitle.replace(/[0-9]/g, "").trim();
+    if (!sanitized) {
+      // Revert to auto-naming based on content of page
+      const targetPage = pages.find((p) => p.id === pageId);
+      if (targetPage) {
+        const pageEls = elements.filter(
+          (el) => (el.pageId || DEFAULT_PAGE_ID) === pageId,
+        );
+        const auto = getAutoPageName(pageEls);
+        const fallbackTitle = auto ? auto.title : DEFAULT_PAGE_TITLE;
+        const fallbackIcon = auto ? auto.icon : (targetPage.icon || DEFAULT_PAGE_ICON);
+        const updatedPage: CanvasPage = {
+          ...targetPage,
+          title: fallbackTitle,
+          icon: fallbackIcon,
+          isCustomTitle: false,
+          updatedAt: Date.now(),
+        };
+        setPages((prev) =>
+          prev.map((p) => (p.id === pageId ? updatedPage : p)),
+        );
+        broadcastAction({
+          type: "page_update",
+          page: updatedPage,
+        });
+      }
+      setEditingPageId(null);
+      return;
+    }
+
     setPages((prev) =>
       prev.map((p) =>
-        p.id === pageId ? { ...p, title: trimmed, updatedAt: Date.now() } : p,
+        p.id === pageId
+          ? { ...p, title: sanitized, isCustomTitle: true, updatedAt: Date.now() }
+          : p,
       ),
     );
     setEditingPageId(null);
@@ -714,7 +831,7 @@ export function Canvas({
     if (updatedPage) {
       broadcastAction({
         type: "page_update",
-        page: { ...updatedPage, title: trimmed },
+        page: { ...updatedPage, title: sanitized, isCustomTitle: true, updatedAt: Date.now() },
       });
     }
   };
@@ -804,6 +921,45 @@ export function Canvas({
 
   const currentIndex = pages.findIndex((p) => p.id === activePageId);
   const currentPage = pages[currentIndex] || pages[0];
+
+  // Sync browser tab title with current page title
+  useEffect(() => {
+    if (currentPage?.title) {
+      document.title = `${currentPage.title} - Scrawl`;
+    }
+  }, [currentPage?.title]);
+
+  // Auto-name pages on initial load if drawings/text exist and page still has default title
+  useEffect(() => {
+    if (initialElements && initialElements.length > 0 && pages.length > 0) {
+      pages.forEach((page) => {
+        if (
+          !page.isCustomTitle &&
+          (/^Page\s*\d*$/i.test(page.title) || page.title === DEFAULT_PAGE_TITLE)
+        ) {
+          const pageEls = initialElements.filter(
+            (el) => (el.pageId || DEFAULT_PAGE_ID) === page.id,
+          );
+          const auto = getAutoPageName(pageEls);
+          if (auto && (auto.title !== page.title || auto.icon !== page.icon)) {
+            const cleanTitle = sanitizePageTitle(auto.title);
+            setPages((prev) =>
+              prev.map((p) =>
+                p.id === page.id
+                  ? {
+                      ...p,
+                      title: cleanTitle,
+                      icon: auto.icon,
+                      updatedAt: Date.now(),
+                    }
+                  : p,
+              ),
+            );
+          }
+        }
+      });
+    }
+  }, [initialElements]);
 
   const handlePrevPage = () => {
     if (currentIndex > 0) {
@@ -1288,13 +1444,17 @@ export function Canvas({
 
   // Text tools helper
   const commitTextInput = () => {
+    if (typingAutoNameTimerRef.current) {
+      clearTimeout(typingAutoNameTimerRef.current);
+    }
     if (!textInput) return;
 
     if (!textInput.text.trim()) {
       if (textInput.editingElementId) {
-        setElements((prev) =>
-          prev.filter((el) => el.id !== textInput.editingElementId),
+        const remaining = elements.filter(
+          (el) => el.id !== textInput.editingElementId,
         );
+        setElements(remaining);
         setMyElements((prev) =>
           prev.filter((id) => id !== textInput.editingElementId),
         );
@@ -1302,6 +1462,7 @@ export function Canvas({
           type: "delete",
           elementId: textInput.editingElementId,
         });
+        autoUpdatePageTitle(remaining);
       }
       setTextInput(null);
       return;
@@ -1327,19 +1488,19 @@ export function Canvas({
 
     if (textInput.editingElementId) {
       // Update existing element
-      setElements((prev) =>
-        prev.map((el) => {
-          if (el.id !== textInput.editingElementId) return el;
-          const updated = {
-            ...el,
-            text: textInput.text,
-            width,
-            height,
-          };
-          broadcastAction({ type: "update", element: updated });
-          return updated;
-        }),
-      );
+      const updatedElements = elements.map((el) => {
+        if (el.id !== textInput.editingElementId) return el;
+        const updated = {
+          ...el,
+          text: textInput.text,
+          width,
+          height,
+        };
+        broadcastAction({ type: "update", element: updated });
+        return updated;
+      });
+      setElements(updatedElements);
+      autoUpdatePageTitle(updatedElements);
     } else {
       // Create new element
       const newId = `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -1358,9 +1519,11 @@ export function Canvas({
         pageId: activePageId,
       };
 
-      setElements((prev) => [...prev, newElement]);
+      const nextElements = [...elements, newElement];
+      setElements(nextElements);
       setMyElements((prev) => [...prev, newElement.id]);
       broadcastAction({ type: "add", element: newElement });
+      autoUpdatePageTitle(nextElements);
     }
     setTextInput(null);
   };
@@ -1458,9 +1621,11 @@ export function Canvas({
     if (tool === "eraser") {
       const clickedEl = getElementAtPosition(mousePos.x, mousePos.y);
       if (clickedEl) {
-        setElements((prev) => prev.filter((el) => el.id !== clickedEl.id));
+        const remaining = elements.filter((el) => el.id !== clickedEl.id);
+        setElements(remaining);
         setMyElements((prev) => prev.filter((id) => id !== clickedEl.id));
         broadcastAction({ type: "delete", elementId: clickedEl.id });
+        autoUpdatePageTitle(remaining);
       }
 
       // Initialize eraser trail
@@ -1567,9 +1732,11 @@ export function Canvas({
     if (tool === "eraser") {
       const clickedEl = getElementAtPosition(mouseWorldPos.x, mouseWorldPos.y);
       if (clickedEl) {
-        setElements((prev) => prev.filter((el) => el.id !== clickedEl.id));
+        const remaining = elements.filter((el) => el.id !== clickedEl.id);
+        setElements(remaining);
         setMyElements((prev) => prev.filter((id) => id !== clickedEl.id));
         broadcastAction({ type: "delete", elementId: clickedEl.id });
+        autoUpdatePageTitle(remaining);
       }
 
       // Update eraser trail points
@@ -1804,9 +1971,11 @@ export function Canvas({
           Math.abs(activeElement.height) > 2;
 
         if (hasSize) {
-          setElements((prev) => [...prev, activeElement]);
+          const nextElements = [...elements, activeElement];
+          setElements(nextElements);
           setMyElements((prev) => [...prev, activeElement.id]);
           broadcastAction({ type: "add", element: activeElement });
+          autoUpdatePageTitle(nextElements);
         }
         setActiveElement(null);
       }
@@ -2002,10 +2171,12 @@ export function Canvas({
       }));
     }
 
-    setElements((prev) => [...prev, newElement]);
+    const nextElements = [...elements, newElement];
+    setElements(nextElements);
     setMyElements((prev) => [...prev, newId]);
     selectElement(newElement);
     broadcastAction({ type: "add", element: newElement });
+    autoUpdatePageTitle(nextElements);
   };
 
   const compressAndPasteImage = (dataUrl: string) => {
@@ -2063,10 +2234,12 @@ export function Canvas({
         pageId: activePageId,
       };
 
-      setElements((prev) => [...prev, newElement]);
+      const nextElements = [...elements, newElement];
+      setElements(nextElements);
       setMyElements((prev) => [...prev, newId]);
       selectElement(newElement);
       broadcastAction({ type: "add", element: newElement });
+      autoUpdatePageTitle(nextElements);
     };
   };
 
@@ -2108,10 +2281,12 @@ export function Canvas({
       pageId: activePageId,
     };
 
-    setElements((prev) => [...prev, newElement]);
+    const nextElements = [...elements, newElement];
+    setElements(nextElements);
     setMyElements((prev) => [...prev, newId]);
     selectElement(newElement);
     broadcastAction({ type: "add", element: newElement });
+    autoUpdatePageTitle(nextElements);
   };
 
   const compressAndPasteImageRef = useRef(compressAndPasteImage);
@@ -2254,8 +2429,10 @@ export function Canvas({
     }
 
     setMyElements(newMyElements);
-    setElements((prev) => prev.filter((e) => e.id !== lastId));
+    const remaining = elements.filter((e) => e.id !== lastId);
+    setElements(remaining);
     broadcastAction({ type: "delete", elementId: lastId });
+    autoUpdatePageTitle(remaining);
   };
 
   const handleRedo = () => {
@@ -2268,9 +2445,11 @@ export function Canvas({
     setRedoStack(nextRedoStack);
     const item = items[0];
 
-    setElements((prev) => [...prev, item]);
+    const nextElements = [...elements, item];
+    setElements(nextElements);
     setMyElements((prev) => [...prev, item.id]);
     broadcastAction({ type: "add", element: item });
+    autoUpdatePageTitle(nextElements);
   };
 
   useEffect(() => {
@@ -2291,14 +2470,16 @@ export function Canvas({
       pageElements.forEach((el) => {
         broadcastAction({ type: "delete", elementId: el.id });
       });
-      setElements((prev) =>
-        prev.filter((el) => (el.pageId || DEFAULT_PAGE_ID) !== activePageId),
+      const remainingElements = elements.filter(
+        (el) => (el.pageId || DEFAULT_PAGE_ID) !== activePageId,
       );
+      setElements(remainingElements);
       setMyElements((prev) =>
         prev.filter((id) => !pageElements.some((el) => el.id === id)),
       );
       setUndoStack([]);
       setRedoStack([]);
+      autoUpdatePageTitle(remainingElements);
     }
   };
 
@@ -2431,7 +2612,9 @@ export function Canvas({
                       <input
                         autoFocus
                         value={editingPageTitle}
-                        onChange={(e) => setEditingPageTitle(e.target.value)}
+                        onChange={(e) =>
+                          setEditingPageTitle(e.target.value.replace(/[0-9]/g, ""))
+                        }
                         onKeyDown={(e) => {
                           if (e.key === "Enter")
                             handleRenamePage(p.id, editingPageTitle);
@@ -2577,9 +2760,11 @@ export function Canvas({
                   )}px`,
                 }}
                 value={textInput.text}
-                onChange={(e) =>
-                  setTextInput({ ...textInput, text: e.target.value })
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTextInput({ ...textInput, text: val });
+                  handleTypingAutoName(val);
+                }}
                 onBlur={commitTextInput}
                 placeholder="Type drawing text..."
               />

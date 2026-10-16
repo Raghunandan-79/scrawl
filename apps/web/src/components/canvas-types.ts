@@ -49,10 +49,11 @@ export interface CanvasPage {
   icon?: string;
   createdAt: number;
   updatedAt?: number;
+  isCustomTitle?: boolean;
 }
 
 export const DEFAULT_PAGE_ID = "page-default";
-export const DEFAULT_PAGE_TITLE = "Page 1";
+export const DEFAULT_PAGE_TITLE = "Page";
 export const DEFAULT_PAGE_ICON = "📄";
 
 export type ActionType =
